@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0.0",
+  "description": "NHAMCS ED public-use year harmonization map for pooled educational ED disposition analysis. Mappings must be checked against each year-specific codebook before any coefficient can be promoted beyond survey_weighted_candidate.",
+  "pool": {
+    "name": "NHAMCS_2018_2022_POOLED",
+    "years": [2018, 2019, 2020, 2021, 2022],
+    "weight_rule": "pooled_weight = PATWT / number_of_years",
+    "design_rule": "pooled_stratum and pooled_psu prefix year to prevent cross-year masked design ID collision",
+    "mapping_status": "confirmed_codebook_for_primary_pooled_age_pain_fever_model",
+    "codebook_confirmation": "Confirmed against official CDC NHAMCS ED Stata public-use labels for 2018-2022 by scripts/nhamcs/confirm_nhamcs_codebook_mappings.py.",
+    "predictor_transforms": {
+      "PAINSCALE": {
+        "valid_range": [0, 10],
+        "missing_sentinel_values": [-8, -9],
+        "sentinel_labels": {"-8": "Unknown", "-9": "Blank"},
+        "output": "pain_score",
+        "notes": "Values outside 0-10 are treated as missing."
+      },
+      "TEMPF": {
+        "scale": "tenths_fahrenheit",
+        "valid_display_units": "degrees_fahrenheit",
+        "missing_sentinel_values": [-9],
+        "sentinel_labels": {"-9": "Blank", "998": "99.8", "999": "99.9"},
+        "output": "temp",
+        "fever_threshold_f": 100.4,
+        "notes": "Do not treat 998 or 999 as missing; divide valid numeric values by 10 before thresholding."
+      },
+      "IMMEDR": {
+        "missing_sentinel_values": [-8, -9],
+        "sentinel_labels": {"-8": "Unknown", "-9": "Blank"},
+        "output": "acuity"
+      },
+      "PULSE": {
+        "missing_sentinel_values": [-9, 998],
+        "sentinel_labels": {"-9": "Blank", "998": "DOPP or DOPPLER"},
+        "output": "HR"
+      },
+      "BPSYS": {
+        "missing_sentinel_values": [-9],
+        "sentinel_labels": {"-9": "Blank"},
+        "output": "SBP"
+      }
+    }
+  },
+  "codes": {
+    "male": [1],
+    "nonTrauma": [4],
+    "flagTrue": [1, "1", "Y", "YES", true]
+  },
+  "years": [
+    {
+      "year": 2018,
+      "source_file": "data/nhamcs/2018/ed2018.dta",
+      "source_globs": ["data/nhamcs/2018/ed2018*.dta", "data/nhamcs/2018/ed2018*.csv", "data/nhamcs/2018/ed2018*.sas7bdat", "data/nhamcs/2018/ed2018*.zip", "data/raw/nhamcs_2018/*"],
+      "age_variable": "AGE",
+      "sex_variable": "SEX",
+      "rfv_variables": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+      "pain_variable": "PAINSCALE",
+      "pain_missing_unknown_codes": ["blank", "NA", "not_0_to_10"],
+      "temperature_variable": "TEMPF",
+      "triage_variable": "IMMEDR",
+      "heart_rate_variable": "PULSE",
+      "systolic_bp_variable": "BPSYS",
+      "trauma_variable": "INJPOISAD",
+      "patwt_variable": "PATWT",
+      "cstratm_variable": "CSTRATM",
+      "cpsum_variable": "CPSUM",
+      "disposition_flags": {
+        "admit": ["ADMITHOS"],
+        "observationHospitalized": ["OBSHOS"],
+        "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+        "observationDischarged": ["OBSDIS"],
+        "transferAcute": ["TRANOTH"],
+        "transferOther": ["TRANNH", "TRANPSYC"],
+        "death": ["DOA", "DIEDED"],
+        "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+        "otherUnknown": ["OTHDISP", "NODISP"]
+      },
+      "known_coding_differences": ["Primary pooled age/pain/fever variables confirmed against official CDC NHAMCS 2018 ED Stata public-use labels. ELOPED is not present in the 2018 public-use Stata file and is treated as not applicable for this pooled window."]
+    },
+    {
+      "year": 2019,
+      "source_file": "data/nhamcs/2019/ed2019.dta",
+      "source_globs": ["data/nhamcs/2019/ed2019*.dta", "data/nhamcs/2019/ed2019*.csv", "data/nhamcs/2019/ed2019*.sas7bdat", "data/nhamcs/2019/ed2019*.zip", "data/raw/nhamcs_2019/*"],
+      "age_variable": "AGE",
+      "sex_variable": "SEX",
+      "rfv_variables": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+      "pain_variable": "PAINSCALE",
+      "pain_missing_unknown_codes": ["blank", "NA", "not_0_to_10"],
+      "temperature_variable": "TEMPF",
+      "triage_variable": "IMMEDR",
+      "heart_rate_variable": "PULSE",
+      "systolic_bp_variable": "BPSYS",
+      "trauma_variable": "INJPOISAD",
+      "patwt_variable": "PATWT",
+      "cstratm_variable": "CSTRATM",
+      "cpsum_variable": "CPSUM",
+      "disposition_flags": {
+        "admit": ["ADMITHOS"],
+        "observationHospitalized": ["OBSHOS"],
+        "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+        "observationDischarged": ["OBSDIS"],
+        "transferAcute": ["TRANOTH"],
+        "transferOther": ["TRANNH", "TRANPSYC"],
+        "death": ["DOA", "DIEDED"],
+        "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+        "otherUnknown": ["OTHDISP", "NODISP"]
+      },
+      "known_coding_differences": ["Primary pooled age/pain/fever variables confirmed against official CDC NHAMCS 2019 ED Stata public-use labels. ELOPED is not present in the 2019 public-use Stata file and is treated as not applicable for this pooled window."]
+    },
+    {
+      "year": 2020,
+      "source_file": "data/nhamcs/2020/ed2020.dta",
+      "source_globs": ["data/nhamcs/2020/ed2020*.dta", "data/nhamcs/2020/ed2020*.csv", "data/nhamcs/2020/ed2020*.sas7bdat", "data/nhamcs/2020/ed2020*.zip", "data/raw/nhamcs_2020/*"],
+      "age_variable": "AGE",
+      "sex_variable": "SEX",
+      "rfv_variables": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+      "pain_variable": "PAINSCALE",
+      "pain_missing_unknown_codes": ["blank", "NA", "not_0_to_10"],
+      "temperature_variable": "TEMPF",
+      "triage_variable": "IMMEDR",
+      "heart_rate_variable": "PULSE",
+      "systolic_bp_variable": "BPSYS",
+      "trauma_variable": "INJPOISAD",
+      "patwt_variable": "PATWT",
+      "cstratm_variable": "CSTRATM",
+      "cpsum_variable": "CPSUM",
+      "disposition_flags": {
+        "admit": ["ADMITHOS"],
+        "observationHospitalized": ["OBSHOS"],
+        "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+        "observationDischarged": ["OBSDIS"],
+        "transferAcute": ["TRANOTH"],
+        "transferOther": ["TRANNH", "TRANPSYC"],
+        "death": ["DOA", "DIEDED"],
+        "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+        "otherUnknown": ["OTHDISP", "NODISP"]
+      },
+      "known_coding_differences": ["Primary pooled age/pain/fever variables confirmed against official CDC NHAMCS 2020 ED Stata public-use labels. ELOPED is not present in the 2020 public-use Stata file and is treated as not applicable for this pooled window."]
+    },
+    {
+      "year": 2021,
+      "source_file": "data/nhamcs/2021/ed2021.dta",
+      "source_globs": ["data/nhamcs/2021/ed2021*.dta", "data/nhamcs/2021/ed2021*.csv", "data/nhamcs/2021/ed2021*.sas7bdat", "data/nhamcs/2021/ed2021*.zip", "data/raw/nhamcs_2021/*"],
+      "age_variable": "AGE",
+      "sex_variable": "SEX",
+      "rfv_variables": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+      "pain_variable": "PAINSCALE",
+      "pain_missing_unknown_codes": ["blank", "NA", "not_0_to_10"],
+      "temperature_variable": "TEMPF",
+      "triage_variable": "IMMEDR",
+      "heart_rate_variable": "PULSE",
+      "systolic_bp_variable": "BPSYS",
+      "trauma_variable": "INJPOISAD",
+      "patwt_variable": "PATWT",
+      "cstratm_variable": "CSTRATM",
+      "cpsum_variable": "CPSUM",
+      "disposition_flags": {
+        "admit": ["ADMITHOS"],
+        "observationHospitalized": ["OBSHOS"],
+        "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+        "observationDischarged": ["OBSDIS"],
+        "transferAcute": ["TRANOTH"],
+        "transferOther": ["TRANNH", "TRANPSYC"],
+        "death": ["DOA", "DIEDED"],
+        "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+        "otherUnknown": ["OTHDISP", "NODISP"]
+      },
+      "known_coding_differences": ["Primary pooled age/pain/fever variables confirmed against official CDC NHAMCS 2021 ED Stata public-use labels. ELOPED is not present in the 2021 public-use Stata file and is treated as not applicable for this pooled window."]
+    },
+    {
+      "year": 2022,
+      "source_file": "data/nhamcs/2022/ed2022.dta",
+      "source_globs": ["data/nhamcs/2022/ed2022*.dta", "data/nhamcs/2022/ed2022*.csv", "data/nhamcs/2022/ed2022*.sas7bdat", "data/nhamcs/2022/ed2022*.zip", "data/raw/nhamcs_2022/*"],
+      "age_variable": "AGE",
+      "sex_variable": "SEX",
+      "rfv_variables": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+      "pain_variable": "PAINSCALE",
+      "pain_missing_unknown_codes": ["blank", "NA", "not_0_to_10"],
+      "temperature_variable": "TEMPF",
+      "triage_variable": "IMMEDR",
+      "heart_rate_variable": "PULSE",
+      "systolic_bp_variable": "BPSYS",
+      "trauma_variable": "INJPOISAD",
+      "patwt_variable": "PATWT",
+      "cstratm_variable": "CSTRATM",
+      "cpsum_variable": "CPSUM",
+      "disposition_flags": {
+        "admit": ["ADMITHOS"],
+        "observationHospitalized": ["OBSHOS"],
+        "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+        "observationDischarged": ["OBSDIS"],
+        "transferAcute": ["TRANOTH"],
+        "transferOther": ["TRANNH", "TRANPSYC"],
+        "death": ["DOA", "DIEDED"],
+        "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+        "otherUnknown": ["OTHDISP", "NODISP"]
+      },
+      "known_coding_differences": ["Primary pooled age/pain/fever variables confirmed against official CDC NHAMCS 2022 ED Stata public-use labels. ELOPED is not present in the 2022 public-use Stata file and is treated as not applicable for this pooled window."]
+    }
+  ]
+}

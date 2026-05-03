@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "name": "mimic_chief_complaint_abdominal_pain",
+  "source": "MIMIC-IV-ED",
+  "domain": "cohort_inclusion",
+  "review_status": "TODO-confirm-source",
+  "source_anchors": [
+    "docs/validation/empirical-model-development-protocol.md:Appendix A3",
+    "../ed_symptom_model_package_plan_v3/13_class_data_ready_spec.md:MIMIC-IV-ED"
+  ],
+  "field": "triage.chiefcomplaint",
+  "patterns": [
+    {
+      "rule_id": "mimic_cc_abdominal_pain",
+      "regex": "\\babdominal\\s+pain\\b",
+      "normalized_value": "abdominal_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_abd_pain",
+      "regex": "\\babd\\.?\\s*(?:ominal\\s*)?pain\\b",
+      "normalized_value": "abdominal_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_stomach_pain",
+      "regex": "\\bstomach\\s+pain\\b",
+      "normalized_value": "abdominal_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_epigastric_pain",
+      "regex": "\\bepigastr(?:ic|ium)?\\s+pain\\b",
+      "normalized_value": "epigastric_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_ruq_pain",
+      "regex": "\\b(?:ruq|right\\s+upper\\s+quadrant)\\s+pain\\b",
+      "normalized_value": "right_upper_quadrant_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_rlq_pain",
+      "regex": "\\b(?:rlq|right\\s+lower\\s+quadrant)\\s+pain\\b",
+      "normalized_value": "right_lower_quadrant_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_llq_pain",
+      "regex": "\\b(?:llq|left\\s+lower\\s+quadrant)\\s+pain\\b",
+      "normalized_value": "left_lower_quadrant_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_luq_pain",
+      "regex": "\\b(?:luq|left\\s+upper\\s+quadrant)\\s+pain\\b",
+      "normalized_value": "left_upper_quadrant_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_suprapubic_pain",
+      "regex": "\\bsuprapubic\\s+pain\\b",
+      "normalized_value": "suprapubic_pain",
+      "use": "primary",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "rule_id": "mimic_cc_flank_pain",
+      "regex": "\\bflank\\s+pain\\b",
+      "normalized_value": "flank_pain",
+      "use": "sensitivity_only",
+      "notes": "Flank pain is not a primary abdominal-pain inclusion term unless a future source review explicitly promotes it.",
+      "review_status": "sensitivity_only"
+    }
+  ]
+}

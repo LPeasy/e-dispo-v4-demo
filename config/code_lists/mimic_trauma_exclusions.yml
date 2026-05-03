@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "name": "mimic_trauma_exclusions",
+  "source": "MIMIC-IV-ED",
+  "domain": "cohort_exclusion",
+  "review_status": "TODO-confirm-source",
+  "source_anchors": [
+    "docs/validation/empirical-model-development-protocol.md:Appendix A4",
+    "../ed_symptom_model_package_plan_v3/13_class_data_ready_spec.md:MIMIC-IV-ED"
+  ],
+  "chief_complaint_field": "triage.chiefcomplaint",
+  "patterns": [
+    {"rule_id": "mimic_trauma_term", "regex": "\\btrauma\\b", "normalized_value": "trauma", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_injury_term", "regex": "\\binjur(?:y|ies|ed)\\b", "normalized_value": "injury", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_fall_term", "regex": "\\bfall\\b|\\bfell\\b", "normalized_value": "fall", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_mvc_term", "regex": "\\bmvc\\b|\\bmva\\b|\\bmotor\\s+vehicle\\b", "normalized_value": "motor_vehicle_collision", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_assault_term", "regex": "\\bassault\\b", "normalized_value": "assault", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_laceration_term", "regex": "\\blaceration\\b|\\blac\\b", "normalized_value": "laceration", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_stab_term", "regex": "\\bstab(?:bed|bing)?\\b", "normalized_value": "stab_wound", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_gunshot_term", "regex": "\\bgun\\s*shot\\b|\\bgunshot\\b|\\bgsw\\b", "normalized_value": "gunshot_wound", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_fracture_term", "regex": "\\bfracture\\b|\\bfx\\b", "normalized_value": "fracture", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_burn_term", "regex": "\\bburn\\b|\\bburns\\b", "normalized_value": "burn", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_accident_term", "regex": "\\baccident\\b", "normalized_value": "accident", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_hit_by_term", "regex": "\\bhit\\s+by\\b", "normalized_value": "hit_by", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_struck_term", "regex": "\\bstruck\\b", "normalized_value": "struck", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "mimic_blunt_trauma_term", "regex": "\\bblunt\\s+trauma\\b", "normalized_value": "blunt_trauma", "use": "primary", "review_status": "TODO-confirm-source"}
+  ],
+  "diagnosis_exclusions": [
+    {
+      "coding_system": "ICD-10-CM",
+      "candidate_code_family": "S00-T88",
+      "notes": "Exact MIMIC diagnosis exclusion patterns must be confirmed before primary fitting.",
+      "review_status": "TODO-confirm-source"
+    },
+    {
+      "coding_system": "ICD-9-CM",
+      "candidate_code_family": "800-999 and applicable E-code injury/adverse-effect families",
+      "notes": "Exact MIMIC diagnosis exclusion patterns must be confirmed before primary fitting.",
+      "review_status": "TODO-confirm-source"
+    }
+  ]
+}

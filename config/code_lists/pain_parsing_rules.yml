@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "name": "pain_parsing_rules",
+  "source": "cross_source_text_and_numeric",
+  "domain": "predictor_mapping",
+  "review_status": "confirmed_project_docs",
+  "source_anchors": [
+    "docs/validation/empirical-model-development-protocol.md:Appendix A7"
+  ],
+  "numeric_range": {
+    "min": 0,
+    "max": 10
+  },
+  "fraction_denominator": 10,
+  "explicit_fraction_patterns": [
+    "(?<!\\d)(-?\\d+(?:\\.\\d+)?)\\s*/\\s*10(?!\\d)",
+    "(?<!\\d)(-?\\d+(?:\\.\\d+)?)\\s*(?:out\\s+of|of)\\s*10(?!\\d)"
+  ],
+  "zero_phrase_patterns": [
+    "\\bdenies\\s+pain\\b",
+    "\\bno\\s+pain\\b",
+    "\\bpain\\s*free\\b"
+  ],
+  "missing_phrase_patterns": [
+    "\\bunable\\b",
+    "\\bunable\\s+to\\s+assess\\b",
+    "\\buta\\b",
+    "\\brefused\\b",
+    "\\bdeclined\\b",
+    "\\bnonverbal\\b",
+    "\\bunknown\\b",
+    "\\bnot\\s+recorded\\b"
+  ],
+  "standalone_number_pattern": "(?<![\\w/.-])-?\\d+(?:\\.\\d+)?(?![\\w/])",
+  "rules": [
+    {"rule_id": "numeric_0_to_10", "input": "numeric 0-10", "output": "score", "review_status": "confirmed_project_docs"},
+    {"rule_id": "fraction_10_over_10", "input": "10/10", "output": "10", "review_status": "confirmed_project_docs"},
+    {"rule_id": "fraction_0_over_10", "input": "0/10", "output": "0", "review_status": "confirmed_project_docs"},
+    {"rule_id": "denies_pain_unambiguous", "input": "denies pain, no pain, pain free", "output": "0 only when no conflicting positive numeric pain value is present", "review_status": "confirmed_project_docs"},
+    {"rule_id": "missing_unable_refused_blank", "input": "unable, refused, uta, nonverbal, blank", "output": "missing", "review_status": "confirmed_project_docs"},
+    {"rule_id": "invalid_out_of_range", "input": "values outside 0-10", "output": "invalid/outlier and missing", "review_status": "confirmed_project_docs"},
+    {"rule_id": "multiple_numbers", "input": "strings with multiple numbers", "output": "parse only a single explicit denominator-10 pain rating; otherwise missing", "review_status": "confirmed_project_docs"}
+  ],
+  "bin3": [
+    {"label": "0-3", "min": 0, "max": 3, "meaning": "low"},
+    {"label": "4-6", "min": 4, "max": 6, "meaning": "moderate"},
+    {"label": "7-10", "min": 7, "max": 10, "meaning": "severe"}
+  ],
+  "bin5": [
+    {"label": "0", "min": 0, "max": 0},
+    {"label": "1-3", "min": 1, "max": 3},
+    {"label": "4-6", "min": 4, "max": 6},
+    {"label": "7-8", "min": 7, "max": 8},
+    {"label": "9-10", "min": 9, "max": 10}
+  ]
+}

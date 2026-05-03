@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_vomiting_rfv",
+  "source": "NHAMCS",
+  "domain": "predictor_mapping",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2018-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2019-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2020-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2021-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2022-stata.zip"
+  ],
+  "fields": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+  "coding_note": "Official Stata value label RFVF confirms stored integer code 15300 for ordinary vomiting across NHAMCS ED 2018-2022. Hematemesis is intentionally represented separately by 15802.",
+  "codes": [
+    {
+      "rule_id": "nhamcs_rfv_vomiting_1530_0",
+      "display_code": "1530.0",
+      "stored_code": 15300,
+      "include_exclude": "include",
+      "normalized_value": "vomiting",
+      "project_label": "vomiting RFV",
+      "exact_codebook_label": "Vomiting",
+      "primary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_rfv_nausea_1525_0",
+      "display_code": "1525.0",
+      "stored_code": 15250,
+      "include_exclude": "exclude",
+      "normalized_value": "nausea_without_vomiting",
+      "project_label": "nausea RFV, not vomiting",
+      "exact_codebook_label": "Nausea",
+      "primary": false,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_rfv_hematemesis_1580_2",
+      "display_code": "1580.2",
+      "stored_code": 15802,
+      "include_exclude": "separate_candidate",
+      "normalized_value": "hematemesis",
+      "project_label": "vomiting blood RFV, reserved for separate workflow",
+      "exact_codebook_label": "Vomiting blood (hematemesis)",
+      "primary": false,
+      "review_status": "confirmed_codebook"
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "stataFile": "ed2022-stata.dta",
+  "variables": {
+    "sex": "SEX",
+    "age": "AGE",
+    "reasonForVisit": ["RFV1", "RFV2", "RFV3", "RFV4", "RFV5"],
+    "trauma": "INJPOISAD",
+    "surveyDesign": {
+      "weight": "PATWT",
+      "edWeight": "EDWT",
+      "strata": "CSTRATM",
+      "psu": "CPSUM"
+    },
+    "applicability": {
+      "raceEthnicity": "RACERETH",
+      "payer": "PAYTYPER",
+      "region": "REGION",
+      "msa": "MSA"
+    },
+    "predictors": {
+      "painScale": "PAINSCALE",
+      "temperature": "TEMPF"
+    },
+    "predictorTransforms": {
+      "PAINSCALE": {
+        "validRange": [0, 10],
+        "missingSentinelValues": [-8, -9],
+        "sentinelLabels": {"-8": "Unknown", "-9": "Blank"},
+        "output": "pain_score",
+        "notes": "Values outside 0-10 are treated as missing."
+      },
+      "TEMPF": {
+        "scale": "tenths_fahrenheit",
+        "validDisplayUnits": "degrees_fahrenheit",
+        "missingSentinelValues": [-9],
+        "sentinelLabels": {"-9": "Blank", "998": "99.8", "999": "99.9"},
+        "output": "temp",
+        "feverThresholdF": 100.4,
+        "notes": "Do not treat 998 or 999 as missing; divide valid numeric values by 10 before thresholding."
+      },
+      "IMMEDR": {
+        "missingSentinelValues": [-8, -9],
+        "sentinelLabels": {"-8": "Unknown", "-9": "Blank"},
+        "output": "acuity"
+      },
+      "PULSE": {
+        "missingSentinelValues": [-9, 998],
+        "sentinelLabels": {"-9": "Blank", "998": "DOPP or DOPPLER"},
+        "output": "HR"
+      },
+      "BPSYS": {
+        "missingSentinelValues": [-9],
+        "sentinelLabels": {"-9": "Blank"},
+        "output": "SBP"
+      }
+    },
+    "dispositionFlags": {
+      "admit": ["ADMITHOS"],
+      "observationHospitalized": ["OBSHOS"],
+      "homeRelease": ["NOFU", "RETRNED", "RETREFFU"],
+      "observationDischarged": ["OBSDIS"],
+      "transferAcute": ["TRANOTH"],
+      "transferOther": ["TRANNH", "TRANPSYC"],
+      "death": ["DOA", "DIEDED"],
+      "nonroutineExit": ["LEFTAMA", "LWBS", "LBTC", "ELOPED"],
+      "otherUnknown": ["OTHDISP", "NODISP"]
+    }
+  },
+  "codes": {
+    "male": [1],
+    "abdominalPainRfv": [15450, 15451, 15452, 15453],
+    "nonTrauma": [4],
+    "flagTrue": [1, "1", "Y", "YES", true]
+  },
+  "modelColumns": ["ageBand", "painSeverity"],
+  "validation": {
+    "modelVersion": "v3.1-validation-baseline",
+    "endpointSpecVersion": "endpoint_refined_v3_2026-04-28",
+    "bootstrapIterations": 100,
+    "randomSeed": 20260428,
+    "primaryModel": "nhamcs_reduced_age_pain_severity"
+  },
+  "predictorMapping": [
+    {
+      "variable": "ageBand",
+      "support": "direct",
+      "fitStatus": "included_in_reduced_empirical_fit",
+      "note": "Age is available directly and can be recoded into class-model age bands."
+    },
+    {
+      "variable": "broadPainRegion",
+      "support": "weak_proxy",
+      "fitStatus": "excluded_from_reduced_empirical_fit",
+      "note": "Abdominal pain RFV codes support a broad complaint proxy, but location mapping is not strong enough for the first empirical fit."
+    },
+    {
+      "variable": "painSeverity",
+      "support": "direct",
+      "fitStatus": "included_in_reduced_empirical_fit",
+      "note": "PAINSCALE is available and can be grouped as mild, moderate, or severe when nonmissing."
+    },
+    {
+      "variable": "onsetDurationCategory",
+      "support": "unavailable",
+      "fitStatus": "prototype_only",
+      "note": "Not directly available in the public-use file."
+    },
+    {
+      "variable": "constantVsIntermittent",
+      "support": "unavailable",
+      "fitStatus": "prototype_only",
+      "note": "Not directly available in the public-use file."
+    },
+    {
+      "variable": "vomiting",
+      "support": "proxy",
+      "fitStatus": "included_in_reduced_empirical_fit",
+      "note": "RFV 15300 ordinary vomiting is mapped separately from hematemesis and may be used only after its evidence gate passes."
+    },
+    {
+      "variable": "hematemesis",
+      "support": "proxy",
+      "fitStatus": "excluded_from_reduced_empirical_fit",
+      "note": "RFV 15802 vomiting blood/hematemesis is a separate sparse-cell validation workflow, not ordinary vomiting severity."
+    },
+    {
+      "variable": "fever",
+      "support": "proxy",
+      "fitStatus": "excluded_from_reduced_empirical_fit",
+      "note": "Use RFV, diagnosis, or temperature proxy only if explicitly mapped."
+    }
+  ],
+  "limitations": [
+    "Review variable names and code values against the official 2022 NHAMCS ED documentation before running.",
+    "The endpoint mapping is flag-based; row-level conflicts are excluded before denominator construction.",
+    "Exact class predictors are partly proxy-based or unavailable in NHAMCS public-use data."
+  ]
+}

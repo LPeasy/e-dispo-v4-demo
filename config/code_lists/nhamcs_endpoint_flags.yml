@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_endpoint_flags",
+  "source": "NHAMCS",
+  "domain": "endpoint_recoding",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2018-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2019-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2020-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2021-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2022-stata.zip",
+    "outputs/nhamcs_pooled/codebook_confirmation_audit.csv",
+    "scripts/nhamcs/config.example.json:variables.dispositionFlags",
+    "docs/nhamcs-pipeline.md:Refined NHAMCS Mapping",
+    "docs/validation/empirical-model-development-protocol.md:Endpoint Conflict Precedence"
+  ],
+  "flag_true_values": [
+    1,
+    "1",
+    "Y",
+    "YES",
+    true
+  ],
+  "groups": [
+    {
+      "rule_id": "nhamcs_endpoint_same_hospital_admission",
+      "label": "same-hospital admission",
+      "flags": [
+        "ADMITHOS"
+      ],
+      "endpoint_class": "admit",
+      "include_primary_binary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_observation_hospitalized",
+      "label": "observation followed by hospitalization",
+      "flags": [
+        "OBSHOS"
+      ],
+      "endpoint_class": "admit",
+      "include_primary_binary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_routine_home_discharge",
+      "label": "routine ED discharge home",
+      "flags": [
+        "NOFU",
+        "RETRNED",
+        "RETREFFU"
+      ],
+      "endpoint_class": "routine_home_discharge",
+      "include_primary_binary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_observation_discharge",
+      "label": "observation then discharged",
+      "flags": [
+        "OBSDIS"
+      ],
+      "endpoint_class": "observation_discharge",
+      "include_primary_binary": false,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_transfer",
+      "label": "transfer",
+      "flags": [
+        "TRANOTH",
+        "TRANNH",
+        "TRANPSYC"
+      ],
+      "endpoint_class": "transfer",
+      "include_primary_binary": false,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_death_doa",
+      "label": "death expired DOA",
+      "flags": [
+        "DOA",
+        "DIEDED"
+      ],
+      "endpoint_class": "death_expired_doa",
+      "include_primary_binary": false,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_ama_lwbs_lbtc_eloped",
+      "label": "AMA LWBS LBTC eloped",
+      "flags": [
+        "LEFTAMA",
+        "LWBS",
+        "LBTC",
+        "ELOPED"
+      ],
+      "endpoint_class": "ama_lwbs_lbtc_eloped",
+      "include_primary_binary": false,
+      "notes": "LEFTAMA, LWBS, and LBTC are confirmed in official 2018-2022 Stata labels. ELOPED is retained for compatibility where present but is absent from the 2018-2022 public-use Stata files.",
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_endpoint_other_unknown",
+      "label": "other unknown missing",
+      "flags": [
+        "OTHDISP",
+        "NODISP"
+      ],
+      "endpoint_class": "other_unknown_missing",
+      "include_primary_binary": false,
+      "review_status": "confirmed_codebook"
+    }
+  ],
+  "missing_rule": {
+    "rule_id": "nhamcs_endpoint_no_terminal_flag",
+    "endpoint_class": "unknown_missing",
+    "include_primary_binary": false,
+    "notes": "Rows with no active terminal disposition flag are excluded and tabulated.",
+    "review_status": "confirmed_codebook"
+  },
+  "conflict_logic": [
+    {
+      "rule_id": "nhamcs_conflict_multiple_terminal_classes",
+      "condition": "More than one mutually exclusive terminal disposition class active.",
+      "endpoint_class": "conflict",
+      "action": "exclude_from_primary_binary_and_tabulate"
+    },
+    {
+      "rule_id": "nhamcs_conflict_admission_plus_exclusion",
+      "condition": "Admission plus transfer, death, AMA, LWBS, observation-discharge, observation-only, other, unknown, or missing.",
+      "endpoint_class": "conflict",
+      "action": "exclude_from_primary_binary_and_tabulate"
+    },
+    {
+      "rule_id": "nhamcs_conflict_discharge_plus_exclusion",
+      "condition": "Routine discharge plus admission, transfer, death, AMA, LWBS, observation, other, unknown, or missing.",
+      "endpoint_class": "conflict",
+      "action": "exclude_from_primary_binary_and_tabulate"
+    }
+  ]
+}
+

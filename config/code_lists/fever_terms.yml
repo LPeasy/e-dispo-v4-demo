@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "name": "fever_terms",
+  "source": "cross_source_vitals_and_text",
+  "domain": "predictor_mapping",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2018-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2019-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2020-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2021-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2022-stata.zip",
+    "outputs/nhamcs_pooled/codebook_confirmation_audit.csv",
+    "docs/validation/empirical-model-development-protocol.md:Appendix A6"
+  ],
+  "objective_thresholds": {
+    "fever_temp_c": 38.0,
+    "fever_temp_f": 100.4,
+    "use": "primary",
+    "source_field": "TEMPF",
+    "scale": "tenths_fahrenheit",
+    "missing_sentinel_values": [-9],
+    "confirmed_labels": {"-9": "Blank", "998": "99.8", "999": "99.9", "1004": "100.4"},
+    "review_status": "confirmed_codebook"
+  },
+  "patterns": [
+    {"rule_id": "fever_text", "regex": "\\bfever\\b", "normalized_value": "fever_text", "use": "sensitivity_only", "review_status": "TODO-confirm-source"},
+    {"rule_id": "febrile_text", "regex": "\\bfebrile\\b", "normalized_value": "fever_text", "use": "sensitivity_only", "review_status": "TODO-confirm-source"},
+    {"rule_id": "chills_text", "regex": "\\bchills\\b|\\brigor(?:s)?\\b", "normalized_value": "fever_text", "use": "sensitivity_only", "review_status": "sensitivity_only"}
+  ],
+  "notes": "Objective temperature is primary for NHAMCS pooled promotion review. Text terms remain sensitivity-only and do not block objective fever promotion."
+}

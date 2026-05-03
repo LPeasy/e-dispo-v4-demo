@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "name": "schema",
+  "format": "json_compatible_yaml",
+  "review_status": "confirmed_project_docs",
+  "source_anchors": [
+    "docs/validation/empirical-model-development-protocol.md"
+  ],
+  "required_top_level_keys": [
+    "schema_version",
+    "name",
+    "review_status",
+    "source_anchors"
+  ],
+  "review_status_values": [
+    "confirmed_project_docs",
+    "confirmed_codebook",
+    "TODO-confirm-source",
+    "sensitivity_only",
+    "blocked",
+    "rejected"
+  ],
+  "common_rule_fields": [
+    "source",
+    "domain",
+    "field",
+    "rule_id",
+    "match_type",
+    "pattern_or_code",
+    "include_exclude",
+    "normalized_value",
+    "notes",
+    "codebook_anchor",
+    "review_status"
+  ],
+  "fitting_gate": {
+    "fail_when_primary_rule_has_status": [
+      "TODO-confirm-source",
+      "blocked",
+      "rejected"
+    ],
+    "allow_sensitivity_only_outside_primary_model": true
+  },
+  "notes": [
+    "Files in this directory use JSON-compatible YAML so they can be read without PyYAML in the bundled Python runtime.",
+    "Uncertain codebook labels or mappings must be marked TODO-confirm-source."
+  ]
+}

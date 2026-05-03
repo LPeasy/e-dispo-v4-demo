@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_abdominal_pain_rfv",
+  "source": "NHAMCS",
+  "domain": "cohort_inclusion",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2018-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2019-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2020-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2021-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2022-stata.zip",
+    "outputs/nhamcs_pooled/codebook_confirmation_audit.csv"
+  ],
+  "fields": [
+    "RFV1",
+    "RFV2",
+    "RFV3",
+    "RFV4",
+    "RFV5"
+  ],
+  "coding_note": "Official Stata value label RFVF confirms stored integer codes 15450-15453 for the abdominal-pain RFV inclusion rule across NHAMCS ED 2018-2022.",
+  "codes": [
+    {
+      "rule_id": "nhamcs_rfv_abdpain_1545_0",
+      "display_code": "1545.0",
+      "stored_code": 15450,
+      "include_exclude": "include",
+      "normalized_value": "abdominal_pain",
+      "project_label": "stomach or abdominal pain RFV, 1545.0",
+      "exact_codebook_label": "Stomach and abdominal pain, cramps an...",
+      "primary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_rfv_abdpain_1545_1",
+      "display_code": "1545.1",
+      "stored_code": 15451,
+      "include_exclude": "include",
+      "normalized_value": "abdominal_pain",
+      "project_label": "stomach or abdominal pain RFV, 1545.1",
+      "exact_codebook_label": "Abdominal pain, cramps, spasms, NOS",
+      "primary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_rfv_abdpain_1545_2",
+      "display_code": "1545.2",
+      "stored_code": 15452,
+      "include_exclude": "include",
+      "normalized_value": "abdominal_pain",
+      "project_label": "stomach or abdominal pain RFV, 1545.2",
+      "exact_codebook_label": "Lower abdominal pain, cramps, spasms,",
+      "primary": true,
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_rfv_abdpain_1545_3",
+      "display_code": "1545.3",
+      "stored_code": 15453,
+      "include_exclude": "include",
+      "normalized_value": "abdominal_pain",
+      "project_label": "stomach or abdominal pain RFV, 1545.3",
+      "exact_codebook_label": "Upper abdominal pain, cramps, spasms",
+      "primary": true,
+      "review_status": "confirmed_codebook"
+    }
+  ],
+  "sensitivity_rules": [
+    {
+      "rule_id": "nhamcs_abdominal_pain_diagnosis_sensitivity",
+      "include_exclude": "include",
+      "normalized_value": "abdominal_pain_diagnosis_proxy",
+      "notes": "Diagnosis-based abdominal pain sensitivity code list is not used by the primary pooled age/pain/fever model.",
+      "review_status": "sensitivity_only"
+    }
+  ]
+}

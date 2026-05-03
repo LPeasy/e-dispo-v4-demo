@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_trauma_exclusions",
+  "source": "NHAMCS",
+  "domain": "cohort_exclusion",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2018-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ED2019-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2020-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2021-stata.zip",
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHAMCS/stata/ed2022-stata.zip",
+    "outputs/nhamcs_pooled/codebook_confirmation_audit.csv"
+  ],
+  "primary_rule": {
+    "rule_id": "nhamcs_injpoisad_strict_non_trauma",
+    "field": "INJPOISAD",
+    "match_type": "equals",
+    "keep_codes": [
+      4
+    ],
+    "include_exclude": "keep",
+    "normalized_value": "non_trauma_non_poisoning_non_adverse_effect",
+    "notes": "Official Stata value label INJPOISADF confirms code 4 as no injury/trauma, overdose/poisoning, or adverse-effect relationship across NHAMCS ED 2018-2022.",
+    "exact_codebook_label": "No, visit is not related to injury/trauma, overdose/poisoning, or adverse effe",
+    "review_status": "confirmed_codebook"
+  },
+  "excluded_domains": [
+    {
+      "rule_id": "nhamcs_exclude_trauma",
+      "domain": "trauma_or_injury",
+      "fields": [
+        "INJPOISAD"
+      ],
+      "codes": [
+        1,
+        5,
+        -8,
+        -9
+      ],
+      "notes": "Primary pooled cohort keeps only INJPOISAD == 4. Other injury/questionable/unknown/blank values are not strict non-traumatic visits and are excluded.",
+      "review_status": "confirmed_codebook"
+    },
+    {
+      "rule_id": "nhamcs_exclude_poisoning_adverse_effect",
+      "domain": "poisoning_or_adverse_effect",
+      "fields": [
+        "INJPOISAD"
+      ],
+      "codes": [
+        2,
+        3
+      ],
+      "notes": "Primary pooled cohort keeps only INJPOISAD == 4. Poisoning and adverse-effect visits are excluded.",
+      "review_status": "confirmed_codebook"
+    }
+  ],
+  "fitting_gate": "Primary pooled fitting may proceed only when INJPOISAD == 4 mapping is confirmed for every pooled NHAMCS year."
+}

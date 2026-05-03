@@ -1,0 +1,173 @@
+import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import test from "node:test"
+
+import {
+  CoefficientDrawAssetError,
+  clearPooledEmpiricalCoefficientDrawCache,
+  loadPooledEmpiricalCoefficientDraws,
+  parsePooledEmpiricalCoefficientDrawCsv,
+  pooledEmpiricalCoefficientDrawAssetUrl,
+} from "../data/pooledEmpiricalCoefficientDraws"
+import { modelMetadata } from "./modelParameters"
+import { isCurrentSimulationResponse } from "./simulationProtocol"
+import {
+  clearSimulationCache,
+  runCachedSimulation,
+} from "./simulationWorkerCore"
+import type { ModelInputs } from "./types"
+
+const validInputs: ModelInputs = {
+  ageBand: "45_54",
+  broadPainRegion: "upper_abdomen",
+  painSeverity: "severe",
+  onsetDurationCategory: "sudden_less_than_24_hours",
+  constantVsIntermittent: "constant",
+  vomiting: "yes",
+  fever: "no",
+}
+
+const coefficientDrawCsv = readFileSync(
+  "src/data/pooled-empirical-coefficient-draws.csv",
+  "utf-8"
+)
+
+const coefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
+  coefficientDrawCsv
+)
+
+test("coefficient draw loader resolves the Vite-managed asset URL", async () => {
+  clearPooledEmpiricalCoefficientDrawCache()
+  const assetPath = "managed://pooled-empirical-coefficient-draws.csv"
+  let requestedPath = ""
+
+  const loadedDraws = await loadPooledEmpiricalCoefficientDraws({
+    assetPath,
+    fetchDraws: async (input) => {
+      requestedPath = input
+      return {
+        ok: true,
+        status: 200,
+        text: async () => coefficientDrawCsv,
+      }
+    },
+  })
+
+  assert.equal(requestedPath, assetPath)
+  assert.equal(loadedDraws.length, modelMetadata.sampleCount / 10)
+  assert.match(
+    pooledEmpiricalCoefficientDrawAssetUrl,
+    /pooled-empirical-coefficient-draws\.csv/
+  )
+  assert.doesNotMatch(pooledEmpiricalCoefficientDrawAssetUrl, /^\/data\//)
+  clearPooledEmpiricalCoefficientDrawCache()
+})
+
+test("coefficient draw loader fails fast when the asset cannot resolve", async () => {
+  clearPooledEmpiricalCoefficientDrawCache()
+
+  await assert.rejects(
+    loadPooledEmpiricalCoefficientDraws({
+      assetPath: "managed://missing-draws.csv",
+      fetchDraws: async () => ({
+        ok: false,
+        status: 404,
+        text: async () => "",
+      }),
+      timeoutMs: 100,
+    }),
+    (error) =>
+      error instanceof CoefficientDrawAssetError &&
+      error.code === "http_error"
+  )
+})
+
+test("coefficient draw loader times out instead of staying pending", async () => {
+  clearPooledEmpiricalCoefficientDrawCache()
+
+  await assert.rejects(
+    loadPooledEmpiricalCoefficientDraws({
+      assetPath: "managed://slow-draws.csv",
+      fetchDraws: async () => new Promise(() => undefined),
+      timeoutMs: 1,
+    }),
+    (error) =>
+      error instanceof CoefficientDrawAssetError &&
+      error.code === "fetch_timeout"
+  )
+})
+
+test("worker core loads draw data once and caches simulation repeats", async () => {
+  clearSimulationCache()
+  let drawLoadCount = 0
+  const loadCoefficientDraws = async () => {
+    drawLoadCount += 1
+    return coefficientDraws
+  }
+
+  const first = await runCachedSimulation(
+    {
+      requestId: 1,
+      inputs: validInputs,
+    },
+    { loadCoefficientDraws }
+  )
+  assert.equal(first.status, "complete")
+  assert.equal(first.cached, false)
+  assert.equal(first.result.sampleCount, modelMetadata.sampleCount)
+  assert.equal(first.result.sampleCount, 100000)
+  assert.ok(first.result.median >= 0)
+  assert.ok(first.result.median <= 1)
+
+  const second = await runCachedSimulation(
+    {
+      requestId: 2,
+      inputs: validInputs,
+    },
+    { loadCoefficientDraws }
+  )
+  assert.equal(second.status, "complete")
+  assert.equal(second.cached, true)
+  assert.deepEqual(second.result, first.result)
+  assert.equal(drawLoadCount, 1)
+})
+
+test("stale worker responses can be ignored by request id", async () => {
+  const response = await runCachedSimulation(
+    {
+      requestId: 10,
+      inputs: validInputs,
+      sampleCount: 500,
+    },
+    { loadCoefficientDraws: async () => coefficientDraws }
+  )
+
+  assert.equal(isCurrentSimulationResponse(10, response), true)
+  assert.equal(isCurrentSimulationResponse(11, response), false)
+})
+
+test("worker core returns a controlled error for malformed draw assets", async () => {
+  clearSimulationCache()
+  const response = await runCachedSimulation(
+    {
+      requestId: 20,
+      inputs: validInputs,
+      sampleCount: 500,
+    },
+    {
+      loadCoefficientDraws: async () => {
+        throw new CoefficientDrawAssetError(
+          "schema_mismatch",
+          "Malformed test asset."
+        )
+      },
+    }
+  )
+
+  assert.equal(response.status, "error")
+  assert.equal(response.errorCode, "coefficient_draw_asset_error")
+  assert.equal(
+    response.error,
+    "The range view could not finish. Try running the model again."
+  )
+})

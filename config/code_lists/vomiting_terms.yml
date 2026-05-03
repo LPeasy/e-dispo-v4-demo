@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "name": "vomiting_terms",
+  "source": "cross_source_text",
+  "domain": "predictor_mapping",
+  "review_status": "TODO-confirm-source",
+  "source_anchors": [
+    "docs/validation/empirical-model-development-protocol.md:Appendix A5"
+  ],
+  "patterns": [
+    {"rule_id": "vomiting_word", "regex": "\\bvomit(?:s|ed|ing)?\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "emesis_word", "regex": "\\bemesis\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "nausea_slash_vomiting", "regex": "\\bnausea\\s*/\\s*vomiting\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "nausea_and_vomiting", "regex": "\\bnausea\\s+(?:and|&)\\s+vomiting\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "n_v_abbrev", "regex": "\\bn\\s*/\\s*v\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"},
+    {"rule_id": "nv_abbrev", "regex": "\\bnv\\b", "normalized_value": "vomiting", "use": "primary", "review_status": "TODO-confirm-source"}
+  ],
+  "excluded_patterns": [
+    {
+      "rule_id": "nausea_alone",
+      "regex": "\\bnausea\\b",
+      "normalized_value": "nausea_without_vomiting",
+      "notes": "Do not count isolated nausea as vomiting unless a sensitivity model explicitly does so.",
+      "review_status": "confirmed_project_docs"
+    }
+  ]
+}
