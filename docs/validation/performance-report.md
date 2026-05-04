@@ -9,10 +9,10 @@ The model is for educational/statistical use only. It is not clinical decision s
 The active app workstream now supports two separate static builds from the same codebase:
 
 - `npm run build:v4` writes `dist/e-dispo-v4-demo/` for the current E-Dispo abdominal-pain app behavior.
-- `npm run build:general` writes `dist/general-e-dispo-demo/` for the separate `general-E-Dispo-model-v1-sex-adjusted` all-sex/all-age non-trauma demo.
+- `npm run build:general` writes `dist/general-e-dispo-demo/` for the separate home-facing `general-E-Dispo-home-v1` all-sex/all-age non-trauma demo. A supplied measured SBP selects `general-E-Dispo-home-v1-measured-sbp`.
 - `npm run build:all-sites` writes both outputs.
 
-`general-E-Dispo-model-v1-sex-adjusted` is a parallel public runnable model built from the plus-sex sensitivity artifact. It is not a replacement for the abdominal-pain model and does not establish clinical use, external validation, or transportability.
+The public general demo is parallel. It is not a replacement for the abdominal-pain model and does not establish clinical use, external validation, transportability, or medical advice. Transfer-in context is not exposed in the public general demo, and SBP is optional because it must be measured rather than guessed.
 
 ## Model Status
 
@@ -121,10 +121,36 @@ The 2026-05-03 reviewer artifact pass added grouped calibration, apparent-perfor
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_model_spec.json`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_report.md`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_sex_sensitivity_comparison.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_sbp_optional_comparison.csv`
 - `docs/validation/calibration-performance-interval-artifact-pass.md`
 - `docs/validation/full-source-scope-screen.md`
 - `docs/validation/full-source-nontrauma-admit-candidate.md`
 - `docs/validation/general-e-dispo-model-v1.md`
+- `docs/validation/general-e-dispo-home-v1.md`
 
 Grouped calibration uses weighted predicted-probability deciles from the active model's apparent predictions. The grouped table reports unweighted N/events, weighted N/events, predicted range, survey-weighted mean prediction, survey-weighted observed admission rate, and a Taylor-linearized survey interval for the observed group rate.
 
@@ -239,7 +265,44 @@ The plus-sex 200-refit optimism correction also completed. Compared with the bas
 
 Subgroup performance/calibration artifacts are written for sex, full age band, race/ethnicity, payer, region, MSA, active-scope flags, acuity, arrival-transfer context, and vital availability. Forty-eight subgroup performance rows are estimable; payer `Worker's compensation` is the only sparse-cell blocker in this pass.
 
-This parallel model remains internal NHAMCS evidence. It is not external validation, not transportability evidence, not clinical validation, and not an app behavior change.
+The source-scope general and plus-sex artifacts remain internal NHAMCS evidence. They are not external validation, not transportability evidence, not clinical validation, and not the public home-facing model branch.
+
+## Home-Facing Public General Demo
+
+The 2026-05-04 home-facing revision adds two public general model IDs:
+
+- `general-E-Dispo-home-v1`
+- `general-E-Dispo-home-v1-measured-sbp`
+
+The public default formula removes `arrival_transfer_context` and uses PAS-5 `high_acuity_proxy` rather than a raw acuity dropdown. NHAMCS `IMMEDR` is only the surrogate fitting source for PAS-5 because direct PAS-5 answers are not observed:
+
+```text
+admit ~ age_centered_40
+      + sex
+      + high_acuity_proxy
+      + fever_or_temp
+      + tachycardia_burden
+```
+
+The measured-SBP branch is used only when the user supplies an actual measured SBP:
+
+```text
+admit ~ age_centered_40
+      + sex
+      + high_acuity_proxy
+      + fever_or_temp
+      + tachycardia_burden
+      + hypotension_burden
+```
+
+Both branches use the all-sex/all-age NHAMCS non-trauma admit-vs-home denominator before complete-case restriction: 50,070 rows and 7,447 admissions.
+
+| Model | Complete-case N | Complete-case events | AUROC | Brier | 95% AUROC interval | 95% Brier interval | Optimism-corrected AUROC | Optimism-corrected Brier |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `general-E-Dispo-home-v1` | 32,681 | 4,702 | 0.811803 | 0.101883 | 0.796539 to 0.824578 | 0.094929 to 0.108322 | 0.810300 | 0.102111 |
+| `general-E-Dispo-home-v1-measured-sbp` | 29,761 | 4,581 | 0.807020 | 0.107047 | 0.792927 to 0.818820 | 0.099894 to 0.113953 | 0.805531 | 0.107319 |
+
+The measured-SBP branch did not improve AUROC, Brier, optimism-corrected AUROC, or optimism-corrected Brier compared with the no-SBP default. It is retained as an optional measured-vital branch only. SBP must not be guessed.
 
 On the same complete-case cohort, the severe-only pain model had AUROC 0.713095 and Brier 0.097640. The current flexible pain comparator had AUROC 0.713136 and Brier 0.097694; the no-pain comparator had AUROC 0.701754 and Brier 0.098208. Leave-one-year-out mean performance favored severe-only pain over the flexible pain comparator: AUROC 0.705185 vs 0.695440 and Brier 0.098783 vs 0.099243.
 

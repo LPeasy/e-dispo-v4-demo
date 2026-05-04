@@ -17,6 +17,11 @@ import {
   eDispoV4Model,
   eDispoV41Pas5Model,
 } from "../data/eDispoV4Model"
+import {
+  GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+  GENERAL_E_DISPO_HOME_MODEL_ID,
+  generalCoefficientByKey,
+} from "../data/generalEDispoModel"
 import { pooledEmpiricalModel } from "../data/pooledEmpiricalModel"
 import type { GeneralModelInputs } from "./types"
 
@@ -250,30 +255,34 @@ test("active e-dispo-v4.1 maps PAS-5 A1/A2 to binary high-acuity proxy", () => {
   assert.equal(a5.linearPredictor, coefficients.intercept)
 })
 
-test("general E-Dispo sex-adjusted model applies age, sex, acuity, arrival, fever, HR, and SBP terms", () => {
+test("general E-Dispo home default applies age, sex, PAS-5 high-acuity proxy, fever, and HR without SBP", () => {
+  const highAcuityPas5 = {
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+  }
   const generalInputs: GeneralModelInputs = {
     age: 50,
     sex: "2",
-    acuityCode: "emergent",
-    arrivalTransferContext:
-      "yes_transferred_from_hospital_or_urgent_care",
+    pas5: highAcuityPas5,
     fever: "yes",
     heartRateBpm: 120,
-    systolicBloodPressure: 80,
+    systolicBloodPressure: null,
   }
+  const modelId = GENERAL_E_DISPO_HOME_MODEL_ID
   const prediction = predictGeneralEDispoDisposition(generalInputs)
   const expectedLinearPredictor =
-    -1.63407360872993 +
-    0.0348494496590697 * 10 +
-    0.204515775369273 +
-    1.12126625563577 +
-    1.57019283241495 +
-    0.399404017910802 +
-    0.262091867980015 * 2 +
-    0.752126485698012 * 2
+    generalCoefficientByKey("intercept", modelId).beta +
+    generalCoefficientByKey("age_centered_40", modelId).beta * 10 +
+    generalCoefficientByKey("sex_2", modelId).beta +
+    generalCoefficientByKey("high_acuity_proxy", modelId).beta +
+    generalCoefficientByKey("fever_or_temp", modelId).beta +
+    generalCoefficientByKey("tachycardia_burden", modelId).beta * 2
 
-  assert.equal(prediction.linearPredictor, expectedLinearPredictor)
-  assert.equal(prediction.probabilityAdmit, logistic(expectedLinearPredictor))
+  assert.ok(Math.abs(prediction.linearPredictor - expectedLinearPredictor) < 1e-12)
+  assert.ok(
+    Math.abs(prediction.probabilityAdmit - logistic(expectedLinearPredictor)) <
+      1e-12
+  )
   assert.equal(
     prediction.activeTerms.some((term) => term.key === "sex_2"),
     true
@@ -282,18 +291,59 @@ test("general E-Dispo sex-adjusted model applies age, sex, acuity, arrival, feve
     prediction.activeTerms.some((term) => term.key === "pain_severe"),
     false
   )
+  assert.equal(
+    prediction.activeTerms.some((term) => term.key === "high_acuity_proxy"),
+    true
+  )
+  assert.equal(
+    prediction.activeTerms.some((term) => term.key === "hypotension_burden"),
+    false
+  )
 })
 
-test("general E-Dispo model blocks missing vitals", () => {
+test("general E-Dispo measured-SBP branch applies hypotension burden when SBP is supplied", () => {
+  const highAcuityPas5 = {
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+  }
+  const generalInputs: GeneralModelInputs = {
+    age: 50,
+    sex: "2",
+    pas5: highAcuityPas5,
+    fever: "yes",
+    heartRateBpm: 120,
+    systolicBloodPressure: 80,
+  }
+  const modelId = GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+  const prediction = predictGeneralEDispoDisposition(generalInputs)
+  const expectedLinearPredictor =
+    generalCoefficientByKey("intercept", modelId).beta +
+    generalCoefficientByKey("age_centered_40", modelId).beta * 10 +
+    generalCoefficientByKey("sex_2", modelId).beta +
+    generalCoefficientByKey("high_acuity_proxy", modelId).beta +
+    generalCoefficientByKey("fever_or_temp", modelId).beta +
+    generalCoefficientByKey("tachycardia_burden", modelId).beta * 2 +
+    generalCoefficientByKey("hypotension_burden", modelId).beta * 2
+
+  assert.ok(Math.abs(prediction.linearPredictor - expectedLinearPredictor) < 1e-12)
+  assert.ok(
+    Math.abs(prediction.probabilityAdmit - logistic(expectedLinearPredictor)) <
+      1e-12
+  )
+  assert.equal(
+    prediction.activeTerms.some((term) => term.key === "hypotension_burden"),
+    true
+  )
+})
+
+test("general E-Dispo model blocks missing HR but allows missing SBP", () => {
   const generalInputs: GeneralModelInputs = {
     age: 40,
     sex: "1",
-    acuityCode: "urgent",
-    arrivalTransferContext:
-      "no_not_transferred_from_hospital_or_urgent_care",
+    pas5: initialPas5Inputs,
     fever: "no",
     heartRateBpm: null,
-    systolicBloodPressure: 120,
+    systolicBloodPressure: null,
   }
 
   assert.throws(

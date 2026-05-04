@@ -24,6 +24,7 @@ import { coefficientArtifactStatus } from "@/data/empiricalArtifacts";
 import { activeEmpiricalModel } from "@/data/eDispoV4Model";
 import {
   generalEDispoModel,
+  generalEDispoMeasuredSbpModel,
   GENERAL_E_DISPO_PUBLIC_MODEL_ID,
 } from "@/data/generalEDispoModel";
 import { modelMetadata } from "@/model/modelParameters";
@@ -476,8 +477,11 @@ export function TechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
 function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }) {
   const limitations = [
     "This is a parallel educational/statistical model, not a replacement for the adult-male abdominal-pain model.",
-    "Metrics are apparent NHAMCS source-scope review metrics and do not establish external validation or transportability.",
-    "Sex is presentation-available but fairness-sensitive; inclusion is not endorsed by apparent performance alone.",
+    "Metrics are apparent NHAMCS home-facing review metrics and do not establish external validation or transportability.",
+    "Sex is presentation-available but fairness-sensitive and remains subject to subgroup/fairness review.",
+    "PAS-5 is the public acuity input. NHAMCS IMMEDR is only the surrogate fitting source because direct PAS-5 answers are not observed.",
+    "SBP is optional and must be measured when supplied; blank SBP uses the no-SBP default branch.",
+    "Transfer-in context is preserved only in source-scope reviewer artifacts, not in this public home-facing model.",
     "Race/ethnicity, payer, region, and MSA remain subgroup/fairness review variables only, not fitted predictors.",
     "Transfers are excluded from the admit-vs-routine-home model target.",
     "Simulation intervals represent coefficient uncertainty in the app method, not individual-level certainty.",
@@ -488,7 +492,7 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
       <PageHeader
         icon={FileText}
         title="Technical Docs"
-        description="Review package summary for the separate general-E-Dispo sex-adjusted all-sex/all-age non-trauma model."
+        description="Review package summary for the separate home-facing general-E-Dispo all-sex/all-age non-trauma model."
         action={
           <Button
             type="button"
@@ -504,14 +508,14 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
           <CardHeader>
             <CardTitle>Model identity</CardTitle>
             <CardDescription>
-              Separate public runnable model and source artifact.
+              Separate public runnable model with an optional measured-SBP branch.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
             <DefinitionRow label="model_id" value={GENERAL_E_DISPO_PUBLIC_MODEL_ID} />
             <DefinitionRow
-              label="Source artifact"
-              value={generalEDispoModel.sourceArtifactId}
+              label="Measured-SBP branch"
+              value={generalEDispoMeasuredSbpModel.modelId}
             />
             <DefinitionRow
               label="Population"
@@ -549,7 +553,7 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Formula and transformations</CardTitle>
-            <CardDescription>Public sex-adjusted general specification.</CardDescription>
+          <CardDescription>Public home-facing general specification.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             <DefinitionRow label="Formula" value={generalEDispoModel.formula} />
@@ -559,12 +563,16 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
               value="max(HR - 100, 0) / 10"
             />
             <DefinitionRow
+              label="high_acuity_proxy"
+              value="PAS-5 A1/A2 activate the term; PAS-5 A3/A4/A5 are reference. NHAMCS IMMEDR is only the fitting surrogate."
+            />
+            <DefinitionRow
               label="hypotension_burden"
-              value="max(100 - SBP, 0) / 10"
+              value="Optional measured-SBP branch only: max(100 - SBP, 0) / 10"
             />
             <DefinitionRow
               label="References"
-              value="Sex code 1, urgent acuity, and no transfer-in context are reference categories."
+              value="Sex code 1 and PAS-5 A3/A4/A5 high_acuity_proxy = 0 are reference categories."
             />
           </CardContent>
         </Card>
@@ -578,15 +586,15 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
           <CardContent className="grid gap-3">
             <DefinitionRow
               label="Required"
-              value="Age, sex, acuity, arrival transfer context, fever yes/no, HR, and SBP"
+              value="Age, sex, PAS-5 five-question acuity proxy, fever yes/no, and HR"
             />
             <DefinitionRow
-              label="Explicit source levels"
-              value="Unknown and blank acuity/arrival levels are selectable levels, not silent missingness."
+              label="Optional"
+              value="Measured SBP activates general-E-Dispo-home-v1-measured-sbp; blank SBP uses the no-SBP default model."
             />
             <DefinitionRow
               label="Blocked"
-              value="Missing HR or missing SBP withholds the estimate."
+              value="Missing HR withholds the estimate. Missing SBP does not."
             />
           </CardContent>
         </Card>
@@ -628,9 +636,9 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
       </Card>
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>Performance metrics</CardTitle>
-          <CardDescription>
-            Apparent NHAMCS source-scope metrics for review; not external
+            <CardTitle>Performance metrics</CardTitle>
+            <CardDescription>
+            Apparent NHAMCS home-facing metrics for review; not external
             validation.
           </CardDescription>
         </CardHeader>
@@ -657,12 +665,12 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
               )}
             />
             <ResultMetric
-              label="Complete-case N / admissions"
+              label="Default complete-case N / admissions"
               value={`${generalEDispoModel.cohortCounts.completeCaseRows.toLocaleString()} / ${generalEDispoModel.cohortCounts.completeCaseAdmissionEvents.toLocaleString()}`}
             />
             <ResultMetric
-              label="Endpoint N / admissions"
-              value={`${generalEDispoModel.cohortCounts.endpointRows.toLocaleString()} / ${generalEDispoModel.cohortCounts.admissionEvents.toLocaleString()}`}
+              label="Measured-SBP N / admissions"
+              value={`${generalEDispoMeasuredSbpModel.cohortCounts.completeCaseRows.toLocaleString()} / ${generalEDispoMeasuredSbpModel.cohortCounts.completeCaseAdmissionEvents.toLocaleString()}`}
             />
           </div>
         </CardContent>
@@ -678,13 +686,13 @@ function GeneralTechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
           <CardContent className="grid gap-3">
             <DefinitionRow
               label="Distribution"
-              value="The app samples bundled joint coefficient vectors generated from the plus-sex covariance artifact, applies fixed selected inputs, then recalculates P(admit)."
+              value="The app samples bundled joint coefficient vectors from the matching home-model covariance artifact, applies fixed selected inputs, then recalculates P(admit)."
             />
             <DefinitionRow
               label="Simulation counts"
               value="1,000, 10,000, or 100,000 user-selected Monte Carlo draws"
             />
-            <DefinitionRow label="Draw seed" value="20260429" />
+            <DefinitionRow label="Draw seed" value="20260504" />
           </CardContent>
         </Card>
         <Card className="rounded-lg">

@@ -78,7 +78,7 @@ The code-list map is versioned in `config/code_lists/nhamcs_general_e_dispo_mode
 
 The primary formula intentionally excludes pain, vomiting, nausea, hematemesis, payer, sex, race/ethnicity, region, MSA, imaging, medication, length-of-visit, wait-time, treatment, diagnosis, and disposition-derived fields. Payer and demographics appear only in subgroup/fairness artifacts.
 
-The 2026-05-04 sensitivity pass also fits `general-E-Dispo-model-v1-plus-sex`, which adds `sex` as a categorical main effect only. That sensitivity model is now exposed as the separate public runnable demo `general-E-Dispo-model-v1-sex-adjusted`. It is not the active adult-male abdominal-pain model and does not replace the primary clean `general-E-Dispo-model-v1` reviewer artifact.
+The 2026-05-04 sensitivity pass also fits `general-E-Dispo-model-v1-plus-sex`, which adds `sex` as a categorical main effect only. That sensitivity model remains a source-scope reviewer artifact. It is not the active adult-male abdominal-pain model and does not replace the primary clean `general-E-Dispo-model-v1` reviewer artifact.
 
 ## Public Runnable Demo
 
@@ -87,13 +87,22 @@ The active app workstream now builds two static site variants from `e-dispo-prot
 | Build command | Output directory | Public model |
 |---|---|---|
 | `npm run build:v4` | `dist/e-dispo-v4-demo/` | current E-Dispo abdominal-pain app behavior |
-| `npm run build:general` | `dist/general-e-dispo-demo/` | `general-E-Dispo-model-v1-sex-adjusted` |
+| `npm run build:general` | `dist/general-e-dispo-demo/` | `general-E-Dispo-home-v1`; measured SBP selects `general-E-Dispo-home-v1-measured-sbp` |
 | `npm run build:all-sites` | both directories | both public demos |
 
-The general public demo uses the `general-E-Dispo-model-v1-plus-sex` coefficients and covariance artifact, generated into a browser coefficient-draw asset at `src/data/general-e-dispo-coefficient-draws.csv`. The public model ID is deliberately different from the reviewer source artifact ID:
+The general public demo no longer exposes `arrival_transfer_context`, because transfer-in status does not map to a person starting at home. It also no longer exposes raw categorical acuity; the public model uses PAS-5 `high_acuity_proxy` with NHAMCS `IMMEDR` only as the fitting surrogate. Blank SBP uses the no-SBP home model; a supplied SBP uses the measured-SBP branch. SBP must be an actual measured value from a cuff, EMS, clinic, or ED reading, not a guess.
 
-- Source statistical artifact: `general-E-Dispo-model-v1-plus-sex`
-- Runnable public model: `general-E-Dispo-model-v1-sex-adjusted`
+The browser coefficient-draw assets are:
+
+- `src/data/general-e-dispo-home-coefficient-draws.csv`
+- `src/data/general-e-dispo-home-measured-sbp-coefficient-draws.csv`
+
+The source-scope reviewer models and the home-facing public models are deliberately separate:
+
+- Source-scope reviewer artifact: `general-E-Dispo-model-v1`
+- Source-scope sex sensitivity artifact: `general-E-Dispo-model-v1-plus-sex`
+- Public home default: `general-E-Dispo-home-v1`
+- Public measured-SBP branch: `general-E-Dispo-home-v1-measured-sbp`
 
 This naming keeps the reviewer evidence trail separate from the public runnable site. It also prevents the broader general model from being confused with the adult-male abdominal-pain `e-dispo-v4.1-pas5-high-acuity-surrogate` app model.
 
@@ -124,6 +133,31 @@ This naming keeps the reviewer evidence trail separate from the public runnable 
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_model_spec.json`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_report.md`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_sex_sensitivity_comparison.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_sbp_optional_comparison.csv`
 
 ## Counts
 
@@ -196,6 +230,36 @@ Sex is presentation-available but fairness-sensitive. The sensitivity artifact i
 
 The plus-sex model nearly eliminates the within-NHAMCS sex subgroup calibration gap, but the overall predictive gain is very small and optimism-corrected Brier is slightly worse. The current reviewer conclusion is therefore: keep as a sensitivity artifact and do not promote sex into the primary clean general model.
 
+## Home-Facing Public Revision
+
+The home-facing public general demo removes `arrival_transfer_context`, replaces raw categorical acuity with PAS-5 `high_acuity_proxy`, and makes SBP optional because the intended user starts at home. The app uses the same five PAS-5 questions and scoring guardrails as the adult-male abdominal-pain model; NHAMCS `IMMEDR` is only the surrogate fitting source because direct PAS-5 answers are not observed. The public default model is:
+
+```text
+admit ~ age_centered_40
+      + sex
+      + high_acuity_proxy
+      + fever_or_temp
+      + tachycardia_burden
+```
+
+The measured-SBP branch is used only when SBP is supplied:
+
+```text
+admit ~ age_centered_40
+      + sex
+      + high_acuity_proxy
+      + fever_or_temp
+      + tachycardia_burden
+      + hypotension_burden
+```
+
+| Model | Complete-case N | Complete-case events | AUROC | Brier | 95% AUROC interval | 95% Brier interval | Optimism-corrected AUROC | Optimism-corrected Brier |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `general-E-Dispo-home-v1` | 32,681 | 4,702 | 0.811803 | 0.101883 | 0.796539 to 0.824578 | 0.094929 to 0.108322 | 0.810300 | 0.102111 |
+| `general-E-Dispo-home-v1-measured-sbp` | 29,761 | 4,581 | 0.807020 | 0.107047 | 0.792927 to 0.818820 | 0.099894 to 0.113953 | 0.805531 | 0.107319 |
+
+Both branches use the same all-sex/all-age NHAMCS non-trauma admit-vs-home denominator before complete-case restriction: 50,070 rows and 7,447 admissions. The measured-SBP branch has fewer complete cases and did not improve apparent or optimism-corrected AUROC/Brier compared with the no-SBP default. It is retained as an optional measured-vital branch, not as proof that a home user should guess SBP.
+
 ## Subgroup And Missingness Artifacts
 
 Subgroup rows are written for sex, full age band, race/ethnicity, payer, region, MSA, original active-scope flags, acuity level, arrival-transfer context, and vital availability. Forty-eight subgroup performance rows are estimable. The only sparse-cell blocker in this pass is payer `Worker's compensation` with 46 rows and 2 admissions.
@@ -204,6 +268,6 @@ Required predictor missingness is not imputed. Missing temperature, HR, or SBP r
 
 ## Interpretation
 
-This model has stronger apparent discrimination than the earlier compact full-source non-trauma candidate because it adds triage acuity, transfer-in context, and hypotension burden. That does not make it the active app model. It is a cleaner parallel development artifact whose predictors are more logically suited to a general non-trauma ED scope.
+The source-scope reviewer model has stronger apparent discrimination than the earlier compact full-source non-trauma candidate because it adds triage acuity, transfer-in context, and hypotension burden. That does not make it the active abdominal-pain app model. The public general demo is narrower from a use-case perspective: it removes transfer-in context, removes raw acuity dropdowns in favor of PAS-5 `high_acuity_proxy`, and treats SBP as optional measured input only.
 
 The next defensible step is prespecified comparison against alternative clean pre-disposition formulas, subgroup interval estimation where supported, and source-specific validation when lawful full-access data are available. The plus-sex sensitivity should remain documented but unpromoted unless a later fairness review and external/source-specific validation justify adding a fairness-sensitive demographic predictor.

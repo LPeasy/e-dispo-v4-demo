@@ -10,7 +10,10 @@ import {
   parsePooledEmpiricalCoefficientDrawCsv,
   pooledEmpiricalCoefficientDrawAssetUrl,
 } from "../data/pooledEmpiricalCoefficientDraws"
-import { GENERAL_E_DISPO_PUBLIC_MODEL_ID } from "../data/generalEDispoModel"
+import {
+  GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+  GENERAL_E_DISPO_PUBLIC_MODEL_ID,
+} from "../data/generalEDispoModel"
 import { modelMetadata } from "./modelParameters"
 import { initialPas5Inputs } from "./aap3Acuity"
 import { isCurrentSimulationResponse } from "./simulationProtocol"
@@ -41,7 +44,7 @@ const coefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
 )
 
 const generalCoefficientDrawCsv = readFileSync(
-  "src/data/general-e-dispo-coefficient-draws.csv",
+  "src/data/general-e-dispo-home-coefficient-draws.csv",
   "utf-8"
 )
 
@@ -50,14 +53,27 @@ const generalCoefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
   GENERAL_E_DISPO_PUBLIC_MODEL_ID
 )
 
+const generalMeasuredSbpCoefficientDrawCsv = readFileSync(
+  "src/data/general-e-dispo-home-measured-sbp-coefficient-draws.csv",
+  "utf-8"
+)
+
+const generalMeasuredSbpCoefficientDraws =
+  parsePooledEmpiricalCoefficientDrawCsv(
+    generalMeasuredSbpCoefficientDrawCsv,
+    GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+  )
+
 const validGeneralInputs: GeneralModelInputs = {
   age: 50,
   sex: "2",
-  acuityCode: "emergent",
-  arrivalTransferContext: "no_not_transferred_from_hospital_or_urgent_care",
+  pas5: {
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+  },
   fever: "yes",
   heartRateBpm: 112,
-  systolicBloodPressure: 92,
+  systolicBloodPressure: null,
 }
 
 test("coefficient draw loader resolves the Vite-managed asset URL", async () => {
@@ -158,7 +174,7 @@ test("worker core loads draw data once and caches simulation repeats", async () 
 
 test("general coefficient draw loader resolves and validates the separate asset schema", async () => {
   clearPooledEmpiricalCoefficientDrawCache()
-  const assetPath = "managed://general-e-dispo-coefficient-draws.csv"
+  const assetPath = "managed://general-e-dispo-home-coefficient-draws.csv"
   let requestedPath = ""
 
   const loadedDraws = await loadCoefficientDrawsForModel(
@@ -179,11 +195,39 @@ test("general coefficient draw loader resolves and validates the separate asset 
   assert.equal(requestedPath, assetPath)
   assert.equal(loadedDraws.length, 10000)
   assert.equal(loadedDraws[0].modelId, GENERAL_E_DISPO_PUBLIC_MODEL_ID)
-  assert.equal(loadedDraws[0].seed, 20260429)
+  assert.equal(loadedDraws[0].seed, 20260504)
   assert.equal(
     Number.isFinite(
-      loadedDraws[0].coefficients.hypotension_burden
+      loadedDraws[0].coefficients.tachycardia_burden
     ),
+    true
+  )
+  assert.equal(loadedDraws[0].coefficients.hypotension_burden, undefined)
+  clearPooledEmpiricalCoefficientDrawCache()
+})
+
+test("measured-SBP general coefficient draw loader validates the SBP branch schema", async () => {
+  clearPooledEmpiricalCoefficientDrawCache()
+  const loadedDraws = await loadCoefficientDrawsForModel(
+    GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+    {
+      assetPath: "managed://general-e-dispo-home-measured-sbp-coefficient-draws.csv",
+      fetchDraws: async () => ({
+        ok: true,
+        status: 200,
+        text: async () => generalMeasuredSbpCoefficientDrawCsv,
+      }),
+    }
+  )
+
+  assert.equal(loadedDraws.length, 10000)
+  assert.equal(
+    loadedDraws[0].modelId,
+    GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+  )
+  assert.equal(loadedDraws[0].seed, 20260504)
+  assert.equal(
+    Number.isFinite(loadedDraws[0].coefficients.hypotension_burden),
     true
   )
   clearPooledEmpiricalCoefficientDrawCache()
@@ -198,9 +242,33 @@ test("worker core runs the general E-Dispo model with model-specific draw data",
       inputs: validInputs,
       generalInputs: validGeneralInputs,
       sampleCount: 500,
-      seed: 20260429,
+      seed: 20260504,
     },
     { loadCoefficientDraws: async () => generalCoefficientDraws }
+  )
+
+  assert.equal(response.status, "complete")
+  assert.equal(response.cached, false)
+  assert.equal(response.result.sampleCount, 500)
+  assert.ok(response.result.median >= 0)
+  assert.ok(response.result.median <= 1)
+})
+
+test("worker core runs the measured-SBP general E-Dispo branch with branch-specific draw data", async () => {
+  clearSimulationCache()
+  const response = await runCachedSimulation(
+    {
+      requestId: 31,
+      modelId: GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+      inputs: validInputs,
+      generalInputs: {
+        ...validGeneralInputs,
+        systolicBloodPressure: 92,
+      },
+      sampleCount: 500,
+      seed: 20260504,
+    },
+    { loadCoefficientDraws: async () => generalMeasuredSbpCoefficientDraws }
   )
 
   assert.equal(response.status, "complete")

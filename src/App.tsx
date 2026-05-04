@@ -51,22 +51,20 @@ import { formatPercent } from "@/model/logisticModel";
 import { appVariantConfig, isGeneralEDispoVariant } from "@/appVariant";
 import { modelMetadata } from "@/model/modelParameters";
 import {
-  GENERAL_E_DISPO_PUBLIC_MODEL_ID,
-  generalAcuityOptions,
-  generalArrivalTransferOptions,
+  generalModelById,
+  generalModelIdForInputs,
   generalOptionLabel,
   generalSexOptions,
+  isGeneralEDispoModelId,
 } from "@/data/generalEDispoModel";
 import { predictGeneralEDispoDisposition } from "@/model/generalEDispoPrediction";
 import {
   predictPooledEmpiricalDisposition,
   toPooledEmpiricalPredictionInputs,
 } from "@/model/pooledEmpiricalPrediction";
-import { initialPas5Inputs } from "@/model/aap3Acuity";
+import { calculatePas5Acuity, initialPas5Inputs } from "@/model/aap3Acuity";
 import type {
   BinarySymptom,
-  GeneralAcuityCode,
-  GeneralArrivalTransferContext,
   GeneralModelInputs,
   GeneralSex,
   ModelInputs,
@@ -437,11 +435,10 @@ const defaultModelInputs: ModelInputs = {
 const defaultGeneralInputs: GeneralModelInputs = {
   age: 40,
   sex: "1",
-  acuityCode: "urgent",
-  arrivalTransferContext: "no_not_transferred_from_hospital_or_urgent_care",
+  pas5: initialPas5Inputs,
   fever: "no",
   heartRateBpm: 88,
-  systolicBloodPressure: 120,
+  systolicBloodPressure: null,
 };
 
 function App() {
@@ -456,12 +453,7 @@ function App() {
   const [generalSex, setGeneralSex] = useState<GeneralSex>(
     defaultGeneralInputs.sex,
   );
-  const [generalAcuityCode, setGeneralAcuityCode] =
-    useState<GeneralAcuityCode>(defaultGeneralInputs.acuityCode);
-  const [generalArrivalTransferContext, setGeneralArrivalTransferContext] =
-    useState<GeneralArrivalTransferContext>(
-      defaultGeneralInputs.arrivalTransferContext,
-    );
+  const [generalPas5, setGeneralPas5] = useState(defaultGeneralInputs.pas5);
   const [generalFever, setGeneralFever] = useState<Exclude<
     BinarySymptom,
     "unknown"
@@ -470,7 +462,7 @@ function App() {
     String(defaultGeneralInputs.heartRateBpm),
   );
   const [generalSystolicBloodPressureText, setGeneralSystolicBloodPressureText] =
-    useState(String(defaultGeneralInputs.systolicBloodPressure));
+    useState("");
   const [sampleCount, setSampleCount] = useState<SimulationCount>(10000);
   const [modelRun, setModelRun] = useState<ModelRun | null>(null);
   const [customerRun, setCustomerRun] = useState<ModelRun | null>(null);
@@ -509,18 +501,16 @@ function App() {
     () => ({
       age: generalAge,
       sex: generalSex,
-      acuityCode: generalAcuityCode,
-      arrivalTransferContext: generalArrivalTransferContext,
+      pas5: generalPas5,
       fever: generalFever,
       heartRateBpm: generalHeartRateBpm,
       systolicBloodPressure: generalSystolicBloodPressure,
     }),
     [
-      generalAcuityCode,
       generalAge,
-      generalArrivalTransferContext,
       generalFever,
       generalHeartRateBpm,
+      generalPas5,
       generalSex,
       generalSystolicBloodPressure,
     ],
@@ -550,10 +540,11 @@ function App() {
 
       try {
         const prediction = predictGeneralEDispoDisposition(generalInputs);
+        const branchModelId = generalModelIdForInputs(generalInputs);
         setRunError(null);
         setModelRun({
           key: currentRunKey,
-          modelId: appVariantConfig.modelId,
+          modelId: branchModelId,
           age: generalInputs.age,
           heartRateBpm: generalHeartRateBpm,
           generalInputs,
@@ -767,10 +758,8 @@ function App() {
               setAge={setGeneralAge}
               sex={generalSex}
               setSex={setGeneralSex}
-              acuityCode={generalAcuityCode}
-              setAcuityCode={setGeneralAcuityCode}
-              arrivalTransferContext={generalArrivalTransferContext}
-              setArrivalTransferContext={setGeneralArrivalTransferContext}
+              pas5={generalPas5}
+              setPas5={setGeneralPas5}
               fever={generalFever}
               setFever={setGeneralFever}
               heartRateText={generalHeartRateText}
@@ -858,7 +847,10 @@ function ResultsInputBanner({
           <span className="font-medium text-foreground">Current inputs</span>
           <BannerDatum label="Age" value={String(run.age)} />
           {run.generalInputs ? (
-            <>
+            (() => {
+              const pas5Result = calculatePas5Acuity(run.generalInputs.pas5);
+              return (
+                <>
               <BannerDatum
                 label="Sex"
                 value={generalOptionLabel(
@@ -867,24 +859,30 @@ function ResultsInputBanner({
                 )}
               />
               <BannerDatum
-                label="Acuity"
-                value={generalOptionLabel(
-                  generalAcuityOptions,
-                  run.generalInputs.acuityCode,
-                )}
+                label="PAS-5"
+                value={`${pas5Result.score}/15 ${pas5Result.acuityClass}`}
               />
               <BannerDatum
-                label="Arrival"
-                value={generalOptionLabel(
-                  generalArrivalTransferOptions,
-                  run.generalInputs.arrivalTransferContext,
-                )}
+                label="High-acuity proxy"
+                value={pas5Result.highAcuityProxy ? "Active" : "Inactive"}
               />
+              {isGeneralEDispoModelId(run.modelId) ? (
+                <BannerDatum
+                  label="Branch"
+                  value={generalModelById(run.modelId).modelId}
+                />
+              ) : null}
               <BannerDatum
                 label="SBP"
-                value={`${run.generalInputs.systolicBloodPressure} mmHg`}
+                value={
+                  run.generalInputs.systolicBloodPressure === null
+                    ? "Not supplied"
+                    : `${run.generalInputs.systolicBloodPressure} mmHg`
+                }
               />
-            </>
+                </>
+              );
+            })()
           ) : (
             <>
               <BannerDatum
@@ -1138,17 +1136,6 @@ function summarizeRunDifferences(
     });
   }
 
-  if (run.generalInputs && reference.generalInputs) {
-    if (
-      run.generalInputs.systolicBloodPressure !==
-      reference.generalInputs.systolicBloodPressure
-    ) {
-      differences.push(
-        `SBP: ${reference.generalInputs.systolicBloodPressure} mmHg -> ${run.generalInputs.systolicBloodPressure} mmHg`,
-      );
-    }
-  }
-
   if (run.heartRateBpm !== reference.heartRateBpm) {
     differences.push(
       `HR: ${reference.heartRateBpm} bpm -> ${run.heartRateBpm} bpm`,
@@ -1176,21 +1163,17 @@ function summarizeGeneralRunInputDifferences(
     );
   }
 
-  if (run.acuityCode !== reference.acuityCode) {
+  const runPas5 = formatPas5Inputs(run.pas5);
+  const referencePas5 = formatPas5Inputs(reference.pas5);
+  if (runPas5 !== referencePas5) {
     differences.push(
-      `Acuity: ${generalOptionLabel(generalAcuityOptions, reference.acuityCode)} -> ${generalOptionLabel(generalAcuityOptions, run.acuityCode)}`,
+      `PAS-5: ${referencePas5} -> ${runPas5}`,
     );
   }
 
-  if (run.arrivalTransferContext !== reference.arrivalTransferContext) {
+  if (run.systolicBloodPressure !== reference.systolicBloodPressure) {
     differences.push(
-      `Arrival: ${generalOptionLabel(
-        generalArrivalTransferOptions,
-        reference.arrivalTransferContext,
-      )} -> ${generalOptionLabel(
-        generalArrivalTransferOptions,
-        run.arrivalTransferContext,
-      )}`,
+      `SBP: ${formatOptionalSbp(reference.systolicBloodPressure)} -> ${formatOptionalSbp(run.systolicBloodPressure)}`,
     );
   }
 
@@ -1203,6 +1186,10 @@ function summarizeGeneralRunInputDifferences(
   return differences;
 }
 
+function formatOptionalSbp(value: number | null): string {
+  return value === null ? "not supplied" : `${value} mmHg`;
+}
+
 function formatRunInputValue(value: ModelInputs[keyof ModelInputs]): string {
   if (typeof value === "object") {
     return formatPas5Inputs(value);
@@ -1212,9 +1199,7 @@ function formatRunInputValue(value: ModelInputs[keyof ModelInputs]): string {
 }
 
 function simulationSeedForModel(modelId: ModelRun["modelId"]): number {
-  return modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID
-    ? 20260429
-    : modelMetadata.seed;
+  return isGeneralEDispoModelId(modelId) ? 20260504 : modelMetadata.seed;
 }
 
 function PrototypeRibbon({ onClick }: { onClick: () => void }) {
@@ -1992,7 +1977,7 @@ function LandingPage() {
             </p>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
               {generalCopy
-                ? "This is a separate all-sex/all-age NHAMCS source-scope model. See disclaimer."
+                ? "This is a separate home-facing all-sex/all-age NHAMCS model. See disclaimer."
                 : "This is a prototype. See disclaimer."}
             </p>
           </div>
@@ -2267,27 +2252,22 @@ function GeneralModelExplorerPage({ setPage }: { setPage: (page: Page) => void }
     {
       label: "Age",
       rule: "age_centered_40 = age - 40",
-      reason: "Age is available before disposition and has a stable direction in the source-scope fit.",
+      reason: "Age is available before disposition and has a stable direction in the home-facing fit.",
     },
     {
       label: "Sex",
       rule: "Female code 2 activates the prespecified main-effect term; male code 1 is reference.",
-      reason: "Sex is presentation-available, but fairness-sensitive. It is included only in this separate sex-adjusted runnable model.",
+      reason: "Sex is presentation-available, but fairness-sensitive. It is included in this separate general runnable model and remains reviewed through subgroup calibration.",
     },
     {
-      label: "Triage acuity",
-      rule: "NHAMCS IMMEDR levels are categorical. Urgent is reference; unknown and blank are explicit levels.",
-      reason: "Acuity is available before disposition and strongly separates broad non-trauma admission patterns.",
-    },
-    {
-      label: "Arrival transfer context",
-      rule: "No transfer-in context is reference; transfer-in, not applicable, unknown, and blank are explicit levels.",
-      reason: "Transfer-in context is an early arrival feature and can represent source-scope severity/context.",
+      label: "PAS-5 high-acuity proxy",
+      rule: "The same five PAS-5 questions map to A1-A5. A1/A2 activate high_acuity_proxy; A3/A4/A5 are reference.",
+      reason: "The public input is user-facing PAS-5. NHAMCS IMMEDR is used only as the fitting surrogate because direct PAS-5 answers are not observed.",
     },
     {
       label: "Initial vitals",
-      rule: "fever_or_temp, tachycardia_burden = max(HR - 100, 0) / 10, hypotension_burden = max(100 - SBP, 0) / 10",
-      reason: "Vitals are objective pre-disposition features and avoid downstream care-process leakage.",
+      rule: "fever_or_temp, tachycardia_burden = max(HR - 100, 0) / 10; measured SBP activates a separate optional branch.",
+      reason: "HR is required. SBP is physiologically relevant but must be measured, not guessed, so it is optional.",
     },
   ];
 
@@ -2308,10 +2288,10 @@ function GeneralModelExplorerPage({ setPage }: { setPage: (page: Page) => void }
         <Info />
         <AlertTitle>Scope boundary</AlertTitle>
         <AlertDescription>
-          general-E-Dispo-model-v1-sex-adjusted is an educational/statistical
-          NHAMCS source-scope model. It is not external validation,
-          transportability evidence, clinical decision support, or medical
-          advice.
+          general-E-Dispo-home-v1 is a home-facing educational/statistical
+          NHAMCS model. SBP is optional and transfer-in context is not a public
+          input. It is not external validation, transportability evidence,
+          clinical decision support, or medical advice.
         </AlertDescription>
       </Alert>
       <section className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 max-[980px]:grid-cols-1">
@@ -2319,21 +2299,25 @@ function GeneralModelExplorerPage({ setPage }: { setPage: (page: Page) => void }
           <CardHeader>
             <CardTitle>Formula</CardTitle>
             <CardDescription>
-              Prespecified sex-adjusted general model.
+              Prespecified home-facing general model.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             <DefinitionRow
               label="model_id"
-              value="general-E-Dispo-model-v1-sex-adjusted"
+              value="general-E-Dispo-home-v1"
             />
             <DefinitionRow
-              label="Source artifact"
-              value="general-E-Dispo-model-v1-plus-sex"
+              label="Measured-SBP branch"
+              value="general-E-Dispo-home-v1-measured-sbp"
             />
             <DefinitionRow
               label="Formula"
-              value="admit ~ age_centered_40 + sex + acuity_code + arrival_transfer_context + fever_or_temp + tachycardia_burden + hypotension_burden"
+              value="Default: admit ~ age_centered_40 + sex + high_acuity_proxy + fever_or_temp + tachycardia_burden"
+            />
+            <DefinitionRow
+              label="Optional SBP formula"
+              value="Measured SBP adds hypotension_burden = max(100 - SBP, 0) / 10"
             />
             <DefinitionRow
               label="Endpoint"
@@ -2354,6 +2338,8 @@ function GeneralModelExplorerPage({ setPage }: { setPage: (page: Page) => void }
               "payer",
               "region",
               "MSA",
+              "raw triage acuity dropdown",
+              "transfer-in context",
               "pain",
               "vomiting",
               "diagnosis",
@@ -2754,20 +2740,20 @@ function generalStoryIntro(
   heartRateBpm: number,
   inputs: GeneralModelInputs,
 ): string {
+  const pas5Result = calculatePas5Acuity(inputs.pas5);
+
   return `For age ${age}, ${generalOptionLabel(
     generalSexOptions,
     inputs.sex,
-  )}, ${generalOptionLabel(
-    generalAcuityOptions,
-    inputs.acuityCode,
-  ).toLowerCase()} acuity, ${generalOptionLabel(
-    generalArrivalTransferOptions,
-    inputs.arrivalTransferContext,
-  ).toLowerCase()}, fever ${valueLabels[
+  )}, PAS-5 ${pas5Result.score}/15 ${pas5Result.acuityClass} with high-acuity proxy ${
+    pas5Result.highAcuityProxy ? "active" : "inactive"
+  }, fever ${valueLabels[
     inputs.fever
   ].toLowerCase()}, HR ${heartRateBpm} bpm, and SBP ${
-    inputs.systolicBloodPressure
-  } mmHg`;
+    inputs.systolicBloodPressure === null
+      ? "not supplied"
+      : `${inputs.systolicBloodPressure} mmHg`
+  }`;
 }
 
 function DistributionPreview() {

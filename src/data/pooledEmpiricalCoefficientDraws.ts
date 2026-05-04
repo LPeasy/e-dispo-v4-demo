@@ -4,13 +4,23 @@
  * graph so the worker can load them as data without bundling them into app JS.
  */
 
+import {
+  GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+  GENERAL_E_DISPO_HOME_MODEL_ID,
+} from "./generalEDispoModel"
+
 export const pooledEmpiricalCoefficientDrawAssetUrl = new URL(
   "./pooled-empirical-coefficient-draws.csv",
   import.meta.url
 ).href
 
-export const generalEDispoCoefficientDrawAssetUrl = new URL(
-  "./general-e-dispo-coefficient-draws.csv",
+export const generalEDispoHomeCoefficientDrawAssetUrl = new URL(
+  "./general-e-dispo-home-coefficient-draws.csv",
+  import.meta.url
+).href
+
+export const generalEDispoHomeMeasuredSbpCoefficientDrawAssetUrl = new URL(
+  "./general-e-dispo-home-measured-sbp-coefficient-draws.csv",
   import.meta.url
 ).href
 
@@ -24,18 +34,6 @@ export type PooledEmpiricalCoefficientVector = {
   high_acuity_proxy?: number
   age_centered_40?: number
   sex_2?: number
-  acuity_code_blank?: number
-  acuity_code_unknown?: number
-  acuity_code_no_triage_esa_conducts_triage?: number
-  acuity_code_immediate?: number
-  acuity_code_emergent?: number
-  acuity_code_semi_urgent?: number
-  acuity_code_nonurgent?: number
-  acuity_code_no_nursing_triage_esa?: number
-  arrival_transfer_context_blank?: number
-  arrival_transfer_context_unknown?: number
-  arrival_transfer_context_not_applicable?: number
-  arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care?: number
   hypotension_burden?: number
   [key: string]: number | undefined
 }
@@ -50,21 +48,33 @@ export const pooledEmpiricalCoefficientDrawMetadata = {
 } as const
 
 export const generalEDispoCoefficientDrawMetadata = {
-  modelId: "general-E-Dispo-model-v1-sex-adjusted",
+  modelId: GENERAL_E_DISPO_HOME_MODEL_ID,
   source: "NHAMCS_2018_2022_POOLED",
-  seed: 20260429,
+  seed: 20260504,
   drawCount: 10000,
   sourcePath:
-    "outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_covariance.csv",
-  assetPath: generalEDispoCoefficientDrawAssetUrl,
+    "outputs/nhamcs_pooled/general_e_dispo_home_v1_covariance.csv",
+  assetPath: generalEDispoHomeCoefficientDrawAssetUrl,
+} as const
+
+export const generalEDispoMeasuredSbpCoefficientDrawMetadata = {
+  modelId: GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID,
+  source: "NHAMCS_2018_2022_POOLED",
+  seed: 20260504,
+  drawCount: 10000,
+  sourcePath:
+    "outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_covariance.csv",
+  assetPath: generalEDispoHomeMeasuredSbpCoefficientDrawAssetUrl,
 } as const
 
 const eDispoV40CoefficientDrawHeader =
   "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed"
 const eDispoV41Pas5CoefficientDrawHeader =
   "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,high_acuity_proxy,seed"
-const generalEDispoCoefficientDrawHeader =
-  "draw_id,intercept,age_centered_40,sex_2,acuity_code_blank,acuity_code_unknown,acuity_code_no_triage_esa_conducts_triage,acuity_code_immediate,acuity_code_emergent,acuity_code_semi_urgent,acuity_code_nonurgent,acuity_code_no_nursing_triage_esa,arrival_transfer_context_blank,arrival_transfer_context_unknown,arrival_transfer_context_not_applicable,arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care,fever_or_temp,tachycardia_burden,hypotension_burden,seed"
+const generalEDispoHomeCoefficientDrawHeader =
+  "draw_id,intercept,age_centered_40,sex_2,high_acuity_proxy,fever_or_temp,tachycardia_burden,seed"
+const generalEDispoHomeMeasuredSbpCoefficientDrawHeader =
+  "draw_id,intercept,age_centered_40,sex_2,high_acuity_proxy,fever_or_temp,tachycardia_burden,hypotension_burden,seed"
 
 const expectedCoefficientKeys = [
   "intercept",
@@ -75,31 +85,25 @@ const expectedCoefficientKeys = [
   "tachycardia_burden",
 ] as const
 
-const generalExpectedCoefficientKeys = [
+const generalHomeExpectedCoefficientKeys = [
   "intercept",
   "age_centered_40",
   "sex_2",
-  "acuity_code_blank",
-  "acuity_code_unknown",
-  "acuity_code_no_triage_esa_conducts_triage",
-  "acuity_code_immediate",
-  "acuity_code_emergent",
-  "acuity_code_semi_urgent",
-  "acuity_code_nonurgent",
-  "acuity_code_no_nursing_triage_esa",
-  "arrival_transfer_context_blank",
-  "arrival_transfer_context_unknown",
-  "arrival_transfer_context_not_applicable",
-  "arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care",
+  "high_acuity_proxy",
   "fever_or_temp",
   "tachycardia_burden",
+] as const
+
+const generalHomeMeasuredSbpExpectedCoefficientKeys = [
+  ...generalHomeExpectedCoefficientKeys,
   "hypotension_burden",
 ] as const
 
 type CoefficientDrawSchema =
   | "e-dispo-v4.0"
   | "e-dispo-v4.1-pas5-high-acuity-surrogate"
-  | "general-E-Dispo-model-v1-sex-adjusted"
+  | typeof GENERAL_E_DISPO_HOME_MODEL_ID
+  | typeof GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
 
 export type CoefficientDrawModelId = CoefficientDrawSchema
 
@@ -303,9 +307,11 @@ export function validatePooledEmpiricalCoefficientDraws(
     drawIds.add(draw.drawId)
 
     const requiredKeys =
-      expectedModelId === "general-E-Dispo-model-v1-sex-adjusted"
-        ? generalExpectedCoefficientKeys
-        : expectedCoefficientKeys
+      expectedModelId === GENERAL_E_DISPO_HOME_MODEL_ID
+        ? generalHomeExpectedCoefficientKeys
+        : expectedModelId === GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+          ? generalHomeMeasuredSbpExpectedCoefficientKeys
+          : expectedCoefficientKeys
     for (const key of requiredKeys) {
       const coefficient = draw.coefficients[key]
       if (!Number.isFinite(coefficient)) {
@@ -342,8 +348,11 @@ function parseCoefficientDrawRow(
     )
   }
 
-  if (schema === "general-E-Dispo-model-v1-sex-adjusted") {
-    return parseGeneralCoefficientDrawRow(cells)
+  if (
+    schema === GENERAL_E_DISPO_HOME_MODEL_ID ||
+    schema === GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+  ) {
+    return parseGeneralCoefficientDrawRow(cells, schema)
   }
 
   const [
@@ -396,11 +405,13 @@ function parseCoefficientDrawRow(
 }
 
 function parseGeneralCoefficientDrawRow(
-  cells: string[]
+  cells: string[],
+  schema: Extract<
+    CoefficientDrawSchema,
+    typeof GENERAL_E_DISPO_HOME_MODEL_ID | typeof GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
+  >
 ): PooledEmpiricalCoefficientDraw {
-  const metadata = coefficientDrawMetadataForModel(
-    "general-E-Dispo-model-v1-sex-adjusted"
-  )
+  const metadata = coefficientDrawMetadataForModel(schema)
   const [drawId, ...coefficientAndSeed] = cells
   const seed = coefficientAndSeed[coefficientAndSeed.length - 1]
   const parsedSeed = Number(seed)
@@ -411,8 +422,12 @@ function parseGeneralCoefficientDrawRow(
     )
   }
 
+  const expectedKeys =
+    schema === GENERAL_E_DISPO_HOME_MODEL_ID
+      ? generalHomeExpectedCoefficientKeys
+      : generalHomeMeasuredSbpExpectedCoefficientKeys
   const coefficients = Object.fromEntries(
-    generalExpectedCoefficientKeys.map((key, index) => [
+    expectedKeys.map((key, index) => [
       key,
       finiteNumber(coefficientAndSeed[index], key),
     ])
@@ -440,24 +455,36 @@ function coefficientDrawSchemaForHeader(
     return "e-dispo-v4.1-pas5-high-acuity-surrogate"
   }
 
-  if (normalizedHeader === generalEDispoCoefficientDrawHeader) {
-    return "general-E-Dispo-model-v1-sex-adjusted"
+  if (normalizedHeader === generalEDispoHomeCoefficientDrawHeader) {
+    return GENERAL_E_DISPO_HOME_MODEL_ID
+  }
+
+  if (normalizedHeader === generalEDispoHomeMeasuredSbpCoefficientDrawHeader) {
+    return GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID
   }
 
   return null
 }
 
 function expectedCellCountForSchema(schema: CoefficientDrawSchema): number {
-  if (schema === "general-E-Dispo-model-v1-sex-adjusted") {
-    return generalExpectedCoefficientKeys.length + 2
+  if (schema === GENERAL_E_DISPO_HOME_MODEL_ID) {
+    return generalHomeExpectedCoefficientKeys.length + 2
+  }
+
+  if (schema === GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID) {
+    return generalHomeMeasuredSbpExpectedCoefficientKeys.length + 2
   }
 
   return schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? 9 : 8
 }
 
 function coefficientDrawMetadataForModel(modelId: CoefficientDrawModelId) {
-  if (modelId === "general-E-Dispo-model-v1-sex-adjusted") {
+  if (modelId === GENERAL_E_DISPO_HOME_MODEL_ID) {
     return generalEDispoCoefficientDrawMetadata
+  }
+
+  if (modelId === GENERAL_E_DISPO_HOME_MEASURED_SBP_MODEL_ID) {
+    return generalEDispoMeasuredSbpCoefficientDrawMetadata
   }
 
   return {

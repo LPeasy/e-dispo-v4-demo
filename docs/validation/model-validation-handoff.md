@@ -1,16 +1,16 @@
 # Model Validation Handoff
 
-Date: 2026-05-03
+Date: 2026-05-04
 
 Active model: `e-dispo-v4.1-pas5-high-acuity-surrogate`
 
-Parallel public demo model: `general-E-Dispo-model-v1-sex-adjusted`
+Parallel public demo model: `general-E-Dispo-home-v1`; measured SBP selects `general-E-Dispo-home-v1-measured-sbp`
 
 This handoff is for model validation review of the current educational ED disposition model for adult men ages 18-64 already in the emergency department with non-traumatic abdominal pain. The model estimates the strict operational endpoint of same-hospital admission versus routine ED discharge home after exclusions.
 
 This model is educational/statistical only. It is not clinical decision support, diagnosis, triage, treatment advice, discharge guidance, medical advice, or a medical device.
 
-The app workstream now has two separate static builds: `npm run build:v4` writes `dist/e-dispo-v4-demo/`, while `npm run build:general` writes `dist/general-e-dispo-demo/`. The general demo is built from the plus-sex sensitivity artifact and remains separate from the adult-male abdominal-pain app model. It does not establish external validation, transportability, or clinical-use evidence.
+The app workstream now has two separate static builds: `npm run build:v4` writes `dist/e-dispo-v4-demo/`, while `npm run build:general` writes `dist/general-e-dispo-demo/`. The general demo is now home-facing: it removes transfer-in context and makes SBP optional. It remains separate from the adult-male abdominal-pain app model and does not establish external validation, transportability, clinical-use evidence, or medical advice.
 
 ## Evidence Map
 
@@ -23,6 +23,7 @@ Primary repo evidence:
 - `docs/validation/full-source-scope-screen.md`
 - `docs/validation/full-source-nontrauma-admit-candidate.md`
 - `docs/validation/general-e-dispo-model-v1.md`
+- `docs/validation/general-e-dispo-home-v1.md`
 - `docs/validation/predictive-power-usability-review.md`
 - `docs/validation/empirical-model-development-protocol.md`
 - `docs/validation/e-dispo-v4.0-pain-severe-decision.md`
@@ -30,7 +31,8 @@ Primary repo evidence:
 - `docs/validation/deficiency-review-next-phase.md`
 - `src/data/eDispoV4Model.ts`
 - `src/data/generalEDispoModel.ts`
-- `src/data/general-e-dispo-coefficient-draws.csv`
+- `src/data/general-e-dispo-home-coefficient-draws.csv`
+- `src/data/general-e-dispo-home-measured-sbp-coefficient-draws.csv`
 - `src/model/generalEDispoPrediction.ts`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_coefficients.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_covariance.csv`
@@ -85,6 +87,31 @@ Primary repo evidence:
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_model_spec.json`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_report.md`
 - `outputs/nhamcs_pooled/general_e_dispo_model_v1_sex_sensitivity_comparison.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_coefficients.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_covariance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_calibration_by_decile.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_performance_intervals.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_optimism_corrected_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_performance.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_subgroup_calibration.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_missingness.csv`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_model_spec.json`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_measured_sbp_report.md`
+- `outputs/nhamcs_pooled/general_e_dispo_home_v1_sbp_optional_comparison.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_cell_counts.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_leave_one_year_out.csv`
 - `outputs/nhamcs_pooled/analytic_cohort_nhamcs_2018_2022.csv`
@@ -383,6 +410,11 @@ Reviewer-facing calibration/performance artifact pass added on 2026-05-03:
 | `general_e_dispo_model_v1_plus_sex_performance.csv` | Prespecified plus-sex sensitivity model for the parallel general model; categorical sex main effect only | Same denominator and complete case as base general model; AUROC 0.818263; Brier 0.104635; `survey_weighted_parallel_sensitivity_model`, not active app model |
 | `general_e_dispo_model_v1_plus_sex_performance_intervals.csv` | 1,000 survey-bootstrap replicate weights over pooled NHAMCS strata/PSUs, fixed apparent predictions | AUROC 0.818263, 95% interval 0.808518 to 0.828209; Brier 0.104635, 95% interval 0.099073 to 0.110226 |
 | `general_e_dispo_model_v1_sex_sensitivity_comparison.csv` | Base-vs-plus-sex comparison for apparent and optimism-corrected metrics | Apparent AUROC +0.000606; apparent Brier -0.000171; optimism-corrected AUROC +0.000317; optimism-corrected Brier +0.000174; max absolute sex calibration gap 0.012625 to approximately 0.000000 |
+| `general_e_dispo_home_v1_performance.csv` | Public home-facing no-SBP general model; transfer-in context removed and PAS-5 `high_acuity_proxy` used instead of a raw acuity dropdown | 50,070 admit-vs-home rows; 32,681 complete-case rows; AUROC 0.811803; Brier 0.101883; `survey_weighted_home_model` |
+| `general_e_dispo_home_v1_performance_intervals.csv` | 1,000 survey-bootstrap replicate weights over pooled NHAMCS strata/PSUs, fixed apparent predictions | AUROC 0.811803, 95% interval 0.796539 to 0.824578; Brier 0.101883, 95% interval 0.094929 to 0.108322 |
+| `general_e_dispo_home_v1_measured_sbp_performance.csv` | Public measured-SBP branch; transfer-in context removed, PAS-5 `high_acuity_proxy` used, and `hypotension_burden` included only when SBP is supplied | 50,070 admit-vs-home rows; 29,761 complete-case rows; AUROC 0.807020; Brier 0.107047; `survey_weighted_home_measured_sbp_model` |
+| `general_e_dispo_home_v1_measured_sbp_performance_intervals.csv` | 1,000 survey-bootstrap replicate weights over pooled NHAMCS strata/PSUs, fixed apparent predictions | AUROC 0.807020, 95% interval 0.792927 to 0.818820; Brier 0.107047, 95% interval 0.099894 to 0.113953 |
+| `general_e_dispo_home_v1_sbp_optional_comparison.csv` | Default-vs-measured-SBP branch comparison for apparent and optimism-corrected metrics | Measured-SBP minus default: AUROC -0.004783; Brier +0.005164; optimism-corrected AUROC -0.004768; optimism-corrected Brier +0.005208 |
 
 The 1,000-replicate AUROC/Brier intervals describe design-aware apparent metric variability for the fitted model surface. They do not refit the model inside each replicate, correct optimism, validate externally, or prove transportability. The 200-refit optimism-corrected rows are internal validation only and also do not prove transportability. The full-source NHAMCS scope screens are out-of-scope source stress tests because they remain in NHAMCS and score rows outside the active fitted population by extrapolation.
 
@@ -391,6 +423,8 @@ The full-source non-trauma candidate track is separate from the active model. It
 `general-E-Dispo-model-v1` is a newer parallel clean pre-disposition general non-trauma artifact. It uses the same all-sex/all-age non-trauma denominator but replaces the compact abdominal-pain-style predictor surface with age centered at 40, NHAMCS `IMMEDR` acuity, NHAMCS `AMBTRANSFER` arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. Payer, sex, race/ethnicity, region, and MSA are subgroup/fairness fields only and are not in the fitted base formula. This track is also not active app behavior and does not broaden the adult-male abdominal-pain v4.1 app model.
 
 `general-E-Dispo-model-v1-plus-sex` is a prespecified sensitivity artifact, not a replacement. It adds sex as a categorical main effect to test residual sex calibration. The result is mixed: sex removes the apparent NHAMCS sex subgroup calibration gap, but the overall metric gain is tiny and optimism-corrected Brier is slightly worse. Current conclusion: keep the artifact, do not promote sex into the primary clean general model without later fairness review and source-specific validation.
+
+`general-E-Dispo-home-v1` is the public general demo branch. It removes `arrival_transfer_context` because transfer-in context does not map to a person starting at home. It also replaces raw categorical acuity with the same PAS-5 questions, answer choices, scoring, and A1/A2 high-acuity proxy behavior used by the adult-male abdominal-pain model; NHAMCS `IMMEDR` is only the surrogate fitting source. Blank SBP uses the no-SBP model, while a supplied measured SBP uses `general-E-Dispo-home-v1-measured-sbp`. The measured-SBP branch did not improve AUROC or Brier versus the no-SBP default, so SBP remains optional measured input only and must not be guessed.
 
 Comparator performance:
 
@@ -472,6 +506,8 @@ Current subgroup and missingness status:
 - A separate full-source non-trauma admit candidate fit and analytic/raw variable screen exist for development review only; they do not broaden active `e-dispo-v4.1`.
 - `general-E-Dispo-model-v1` subgroup and missingness artifacts exist for the parallel general non-trauma model; they are internal NHAMCS reviewer artifacts only and not active app evidence.
 - `general-E-Dispo-model-v1-plus-sex` exists only as a prespecified sensitivity artifact. It is not promoted because the overall performance gain is tiny and optimism-corrected Brier is slightly worse despite better sex subgroup calibration.
+- `general-E-Dispo-home-v1` is the public home-facing general branch; transfer-in context and raw acuity dropdowns are excluded, PAS-5 `high_acuity_proxy` is used, and blank SBP no longer blocks prediction.
+- `general-E-Dispo-home-v1-measured-sbp` exists only for actual measured SBP. Its apparent and optimism-corrected AUROC/Brier are worse than the no-SBP default, so it should not be treated as a required input or a reason to guess blood pressure.
 - Tachycardia duration is not feasible in NHAMCS because the source has one `PULSE` value.
 
 Evidence:
@@ -604,4 +640,4 @@ Use this section during review.
 
 ## Bottom Line For Reviewer
 
-The repo supports `e-dispo-v4.1-pas5-high-acuity-surrogate` as a bounded educational empirical model with moderate apparent predictive signal and clear limitations. It does not support clinical deployment, patient-level action, external validation, or broad generalization. The 2026-05-03 pass added grouped calibration, design-aware apparent AUROC/Brier intervals, missingness/subgroup rows including race/ethnicity, payer, region, and MSA, 200-refit optimism-corrected internal estimates, full-source NHAMCS source-scope screens, a separate full-source non-trauma candidate model and analytic/raw variable screen, a sparse MIMIC-IV-ED blocker, and candidate-refinement blocker rows for the v4.0 predecessor. The 2026-05-04 pass adds PAS-5 `high_acuity_proxy` through NHAMCS `IMMEDR` surrogate evidence, plus `general-E-Dispo-model-v1` as a parallel clean pre-disposition all-sex/all-age non-trauma model artifact with its own coefficients, covariance, grouped calibration, intervals, optimism correction, subgroup, and missingness outputs. The same pass adds `general-E-Dispo-model-v1-plus-sex` as a prespecified sensitivity artifact; it improves sex subgroup calibration but is not promoted because the overall performance gain is negligible and optimism-corrected Brier is slightly worse. The strongest remaining validation needs are adequate source-specific/external validation, subgroup interval estimation where event counts support it, direct PAS-5 patient-answer validation, and prespecified leakage-reviewed candidate-model comparison before any broader replacement model is considered.
+The repo supports `e-dispo-v4.1-pas5-high-acuity-surrogate` as a bounded educational empirical model with moderate apparent predictive signal and clear limitations. It does not support clinical deployment, patient-level action, external validation, or broad generalization. The 2026-05-03 pass added grouped calibration, design-aware apparent AUROC/Brier intervals, missingness/subgroup rows including race/ethnicity, payer, region, and MSA, 200-refit optimism-corrected internal estimates, full-source NHAMCS source-scope screens, a separate full-source non-trauma candidate model and analytic/raw variable screen, a sparse MIMIC-IV-ED blocker, and candidate-refinement blocker rows for the v4.0 predecessor. The 2026-05-04 pass adds PAS-5 `high_acuity_proxy` through NHAMCS `IMMEDR` surrogate evidence, plus `general-E-Dispo-model-v1` as a parallel clean pre-disposition all-sex/all-age non-trauma source-scope model artifact with its own coefficients, covariance, grouped calibration, intervals, optimism correction, subgroup, and missingness outputs. The same pass adds `general-E-Dispo-model-v1-plus-sex` as a prespecified sensitivity artifact. The public general demo now uses `general-E-Dispo-home-v1` with optional `general-E-Dispo-home-v1-measured-sbp`; transfer-in context and raw acuity dropdowns are removed, PAS-5 `high_acuity_proxy` is used, and blank SBP no longer blocks prediction. The strongest remaining validation needs are adequate source-specific/external validation, subgroup interval estimation where event counts support it, direct PAS-5 patient-answer validation, and prespecified leakage-reviewed candidate-model comparison before any broader replacement model is considered.

@@ -11,9 +11,9 @@ The app is not medical advice. It is not diagnosis, triage, treatment guidance, 
 The repo now supports two separate static builds from the same codebase:
 
 - `e_dispo_v4`: current E-Dispo educational app behavior for the adult-male non-traumatic abdominal-pain model workstream.
-- `general_e_dispo`: separate `general-E-Dispo-model-v1-sex-adjusted` runnable demo for all-sex/all-age NHAMCS non-trauma records.
+- `general_e_dispo`: separate home-facing `general-E-Dispo-home-v1` runnable demo for all-sex/all-age NHAMCS non-trauma records. It uses PAS-5 `high_acuity_proxy` instead of a raw acuity dropdown and has an optional measured-SBP branch.
 
-The general model is parallel. It does not replace the abdominal-pain model and does not create external validation, transportability, or clinical-use evidence.
+The general model is parallel. It does not replace the abdominal-pain model and does not create external validation, transportability, clinical-use evidence, or medical advice. Transfer-in context is excluded from the public general demo because it does not map to a person starting at home. SBP is optional and must be measured; blank SBP uses the no-SBP branch.
 
 The GitHub Pages workflow builds the default root app plus both named subdirectory builds before uploading `dist/`.
 
