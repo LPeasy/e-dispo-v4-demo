@@ -5,10 +5,12 @@ import test from "node:test"
 import {
   CoefficientDrawAssetError,
   clearPooledEmpiricalCoefficientDrawCache,
+  loadCoefficientDrawsForModel,
   loadPooledEmpiricalCoefficientDraws,
   parsePooledEmpiricalCoefficientDrawCsv,
   pooledEmpiricalCoefficientDrawAssetUrl,
 } from "../data/pooledEmpiricalCoefficientDraws"
+import { GENERAL_E_DISPO_PUBLIC_MODEL_ID } from "../data/generalEDispoModel"
 import { modelMetadata } from "./modelParameters"
 import { initialPas5Inputs } from "./aap3Acuity"
 import { isCurrentSimulationResponse } from "./simulationProtocol"
@@ -16,7 +18,7 @@ import {
   clearSimulationCache,
   runCachedSimulation,
 } from "./simulationWorkerCore"
-import type { ModelInputs } from "./types"
+import type { GeneralModelInputs, ModelInputs } from "./types"
 
 const validInputs: ModelInputs = {
   ageBand: "45_54",
@@ -37,6 +39,26 @@ const coefficientDrawCsv = readFileSync(
 const coefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
   coefficientDrawCsv
 )
+
+const generalCoefficientDrawCsv = readFileSync(
+  "src/data/general-e-dispo-coefficient-draws.csv",
+  "utf-8"
+)
+
+const generalCoefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
+  generalCoefficientDrawCsv,
+  GENERAL_E_DISPO_PUBLIC_MODEL_ID
+)
+
+const validGeneralInputs: GeneralModelInputs = {
+  age: 50,
+  sex: "2",
+  acuityCode: "emergent",
+  arrivalTransferContext: "no_not_transferred_from_hospital_or_urgent_care",
+  fever: "yes",
+  heartRateBpm: 112,
+  systolicBloodPressure: 92,
+}
 
 test("coefficient draw loader resolves the Vite-managed asset URL", async () => {
   clearPooledEmpiricalCoefficientDrawCache()
@@ -132,6 +154,60 @@ test("worker core loads draw data once and caches simulation repeats", async () 
   assert.equal(second.cached, true)
   assert.deepEqual(second.result, first.result)
   assert.equal(drawLoadCount, 1)
+})
+
+test("general coefficient draw loader resolves and validates the separate asset schema", async () => {
+  clearPooledEmpiricalCoefficientDrawCache()
+  const assetPath = "managed://general-e-dispo-coefficient-draws.csv"
+  let requestedPath = ""
+
+  const loadedDraws = await loadCoefficientDrawsForModel(
+    GENERAL_E_DISPO_PUBLIC_MODEL_ID,
+    {
+      assetPath,
+      fetchDraws: async (input) => {
+        requestedPath = input
+        return {
+          ok: true,
+          status: 200,
+          text: async () => generalCoefficientDrawCsv,
+        }
+      },
+    }
+  )
+
+  assert.equal(requestedPath, assetPath)
+  assert.equal(loadedDraws.length, 10000)
+  assert.equal(loadedDraws[0].modelId, GENERAL_E_DISPO_PUBLIC_MODEL_ID)
+  assert.equal(loadedDraws[0].seed, 20260429)
+  assert.equal(
+    Number.isFinite(
+      loadedDraws[0].coefficients.hypotension_burden
+    ),
+    true
+  )
+  clearPooledEmpiricalCoefficientDrawCache()
+})
+
+test("worker core runs the general E-Dispo model with model-specific draw data", async () => {
+  clearSimulationCache()
+  const response = await runCachedSimulation(
+    {
+      requestId: 30,
+      modelId: GENERAL_E_DISPO_PUBLIC_MODEL_ID,
+      inputs: validInputs,
+      generalInputs: validGeneralInputs,
+      sampleCount: 500,
+      seed: 20260429,
+    },
+    { loadCoefficientDraws: async () => generalCoefficientDraws }
+  )
+
+  assert.equal(response.status, "complete")
+  assert.equal(response.cached, false)
+  assert.equal(response.result.sampleCount, 500)
+  assert.ok(response.result.median >= 0)
+  assert.ok(response.result.median <= 1)
 })
 
 test("stale worker responses can be ignored by request id", async () => {

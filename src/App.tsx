@@ -48,7 +48,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatPercent } from "@/model/logisticModel";
+import { appVariantConfig, isGeneralEDispoVariant } from "@/appVariant";
 import { modelMetadata } from "@/model/modelParameters";
+import {
+  GENERAL_E_DISPO_PUBLIC_MODEL_ID,
+  generalAcuityOptions,
+  generalArrivalTransferOptions,
+  generalOptionLabel,
+  generalSexOptions,
+} from "@/data/generalEDispoModel";
+import { predictGeneralEDispoDisposition } from "@/model/generalEDispoPrediction";
 import {
   predictPooledEmpiricalDisposition,
   toPooledEmpiricalPredictionInputs,
@@ -56,6 +65,10 @@ import {
 import { initialPas5Inputs } from "@/model/aap3Acuity";
 import type {
   BinarySymptom,
+  GeneralAcuityCode,
+  GeneralArrivalTransferContext,
+  GeneralModelInputs,
+  GeneralSex,
   ModelInputs,
   PainSeverity,
   PredictionResult,
@@ -68,14 +81,17 @@ import type { ModelRun, Page, SimulationCount } from "@/appTypes";
 import { DefinitionRow, PageHeader, ResultMetric } from "@/components/AppShared";
 import { CustomerPreviewPage } from "@/components/CustomerPreview";
 import { TechnicalDocsPage } from "@/components/TechnicalDocsPage";
-import { UseModelPage } from "@/components/ReviewerUseModel";
+import { GeneralUseModelPage, UseModelPage } from "@/components/ReviewerUseModel";
 import {
+  buildGeneralModelRunKey,
+  buildGeneralReadinessState,
   buildModelRunKey,
   buildReadinessState,
   clampNumber,
   deriveAgeBand,
   formatCoefficient,
   parseHeartRate,
+  parsePositiveNumber,
 } from "@/appUtils";
 import { cn } from "@/lib/utils";
 
@@ -193,6 +209,7 @@ type ExplorerNodeId =
   | "fever"
   | "vomiting"
   | "heartRate"
+  | "pas5"
   | "logistic"
   | "simulation"
   | "endpoint";
@@ -279,11 +296,11 @@ const explorerNodes: ExplorerNode[] = [
     direction:
       "In this fitted model, a higher age usually moves the estimate upward.",
     rule: "The app subtracts 42 from the entered age, so age 50 becomes age_centered 8.",
-    source: "Comes from the fitted e-dispo-v4.0 model export.",
+    source: "Comes from the fitted e-dispo-v4.1 model export.",
     uncertainty:
       "The model treats each added year the same way. That is a statistical shortcut.",
     why: "Age can track health burden and different ED disposition patterns within the modeled group.",
-    beta: "Technical detail: beta 0.043118787834530395 per year centered at 42",
+    beta: "Technical detail: beta 0.0450480147935024 per year centered at 42",
   },
   {
     id: "pain",
@@ -294,8 +311,8 @@ const explorerNodes: ExplorerNode[] = [
     role: "Pain severity tells the model whether severe pain was recorded.",
     direction:
       "Severe pain usually moves the estimate upward compared with non-severe pain in the current v4 fit.",
-    rule: "Mild and moderate are the non-severe comparison point. Severe adds beta 0.52181881795062.",
-    source: "Comes from the fitted e-dispo-v4.0 model export.",
+    rule: "Mild and moderate are the non-severe comparison point. Severe adds beta 0.556443332598118.",
+    source: "Comes from the fitted e-dispo-v4.1 model export.",
     uncertainty:
       "Pain is collapsed to severe versus non-severe. This is not a monotonic pain claim.",
     why: "Pain intensity can reflect the visit, the documentation, or other features related to disposition.",
@@ -308,8 +325,8 @@ const explorerNodes: ExplorerNode[] = [
     group: "Input",
     role: "This input tells the model whether fever or a high-temperature proxy was recorded.",
     direction: "A yes value usually moves the estimate upward.",
-    rule: "The app asks for a required yes/no fever value. Yes means an observed temperature of 100.4 F or higher and activates the fever_or_temp term. Beta 0.8870420313203969 when active.",
-    source: "Comes from the fitted e-dispo-v4.0 model export.",
+    rule: "The app asks for a required yes/no fever value. Yes means an observed temperature of 100.4 F or higher and activates the fever_or_temp term. Beta 0.994381942387039 when active.",
+    source: "Comes from the fitted e-dispo-v4.1 model export.",
     uncertainty: "Proxy mapping can vary by dataset and documentation source.",
     why: "Fever or high temperature can track visit severity and disposition patterns.",
   },
@@ -321,8 +338,8 @@ const explorerNodes: ExplorerNode[] = [
     group: "Input",
     role: "Vomiting tells the model whether this symptom was recorded.",
     direction: "A yes value usually moves the estimate upward.",
-    rule: "The app asks for a required yes/no vomiting value. Yes activates the vomiting_present term; no does not. Beta 0.46912257968096427 when active.",
-    source: "Comes from the fitted e-dispo-v4.0 model export.",
+    rule: "The app asks for a required yes/no vomiting value. Yes activates the vomiting_present term; no does not. Beta 0.431253333679371 when active.",
+    source: "Comes from the fitted e-dispo-v4.1 model export.",
     uncertainty: "Vomiting may be recorded differently across source systems.",
     why: "Vomiting can relate to symptom burden, dehydration concerns, and ED observation patterns.",
   },
@@ -334,11 +351,27 @@ const explorerNodes: ExplorerNode[] = [
     group: "Input",
     role: "Heart rate only changes the model when it is above 100 bpm.",
     direction: "Higher HR above 100 bpm usually moves the estimate upward.",
-    rule: "tachycardia_burden = max(HR - 100, 0) / 10. HR 110 equals 1 burden unit. Here, burden means 10 bpm above 100. Beta 0.4269432162227637 per unit.",
-    source: "Comes from the fitted e-dispo-v4.0 model export.",
+    rule: "tachycardia_burden = max(HR - 100, 0) / 10. HR 110 equals 1 burden unit. Here, burden means 10 bpm above 100. Beta 0.456426837475548 per unit.",
+    source: "Comes from the fitted e-dispo-v4.1 model export.",
     uncertainty:
       "Observed HR is required. Missing HR blocks prediction in this class app.",
     why: "Heart rate above 100 can track physiologic stress and disposition patterns.",
+  },
+  {
+    id: "pas5",
+    label: "PAS-5 high-acuity proxy",
+    shortLabel: "PAS-5",
+    icon: Info,
+    group: "Input",
+    role: "PAS-5 maps five patient-perceived acuity answers into A1 through A5.",
+    direction:
+      "A1 or A2 activates the high_acuity_proxy term; A3, A4, and A5 are the reference side.",
+    rule: "PAS-5 A1/A2 adds beta 1.24984421126593. The coefficient is bridged through NHAMCS IMMEDR clinician-acuity surrogate evidence.",
+    source:
+      "Comes from the fitted e-dispo-v4.1 PAS-5 high-acuity surrogate model export.",
+    uncertainty:
+      "NHAMCS does not contain direct PAS-5 patient answers, so this is surrogate-derived rather than direct patient self-assessment validation.",
+    why: "Self-perceived urgency can contain information about severity, function, trajectory, distress, and expected resources.",
   },
   {
     id: "logistic",
@@ -349,9 +382,9 @@ const explorerNodes: ExplorerNode[] = [
     role: "The model adds the active pieces together. Then it turns that total into a probability.",
     direction:
       "Positive active terms usually move P(admit) upward; negative active terms move it downward.",
-    rule: "Formula: admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden.",
+    rule: "Formula: admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden + high_acuity_proxy.",
     source:
-      "The active prototype shell uses model_id e-dispo-v4.0.",
+      "The active prototype shell uses model_id e-dispo-v4.1-pas5-high-acuity-surrogate.",
     uncertainty:
       "This model is intentionally compact, so it cannot represent every source of variation.",
     why: "Logistic regression is a transparent way to combine inputs into a probability estimate.",
@@ -383,7 +416,7 @@ const explorerNodes: ExplorerNode[] = [
       "This is the final output, not a predictor with its own direction of effect.",
     rule: "Binary endpoint after exclusions: same-hospital inpatient admission vs routine ED home disposition.",
     source:
-      "Defined by the e-dispo-v4.0 model artifact and documented in Technical Docs.",
+      "Defined by the e-dispo-v4.1 PAS-5 surrogate model artifact and documented in Technical Docs.",
     uncertainty:
       "Excluded disposition categories are not estimated by this endpoint.",
     why: "One locked endpoint keeps the demo easier to read and review.",
@@ -401,6 +434,16 @@ const defaultModelInputs: ModelInputs = {
   pas5: initialPas5Inputs,
 };
 
+const defaultGeneralInputs: GeneralModelInputs = {
+  age: 40,
+  sex: "1",
+  acuityCode: "urgent",
+  arrivalTransferContext: "no_not_transferred_from_hospital_or_urgent_care",
+  fever: "no",
+  heartRateBpm: 88,
+  systolicBloodPressure: 120,
+};
+
 function App() {
   const [page, setPage] = useState<Page>("landing");
   const [age, setAge] = useState(42);
@@ -409,6 +452,25 @@ function App() {
   const [vomiting, setVomiting] = useState<BinarySymptom>("no");
   const [pas5, setPas5] = useState(initialPas5Inputs);
   const [heartRateText, setHeartRateText] = useState("88");
+  const [generalAge, setGeneralAge] = useState(defaultGeneralInputs.age);
+  const [generalSex, setGeneralSex] = useState<GeneralSex>(
+    defaultGeneralInputs.sex,
+  );
+  const [generalAcuityCode, setGeneralAcuityCode] =
+    useState<GeneralAcuityCode>(defaultGeneralInputs.acuityCode);
+  const [generalArrivalTransferContext, setGeneralArrivalTransferContext] =
+    useState<GeneralArrivalTransferContext>(
+      defaultGeneralInputs.arrivalTransferContext,
+    );
+  const [generalFever, setGeneralFever] = useState<Exclude<
+    BinarySymptom,
+    "unknown"
+  >>(defaultGeneralInputs.fever);
+  const [generalHeartRateText, setGeneralHeartRateText] = useState(
+    String(defaultGeneralInputs.heartRateBpm),
+  );
+  const [generalSystolicBloodPressureText, setGeneralSystolicBloodPressureText] =
+    useState(String(defaultGeneralInputs.systolicBloodPressure));
   const [sampleCount, setSampleCount] = useState<SimulationCount>(10000);
   const [modelRun, setModelRun] = useState<ModelRun | null>(null);
   const [customerRun, setCustomerRun] = useState<ModelRun | null>(null);
@@ -427,6 +489,10 @@ function App() {
   const prototypeResetRef = useRef<number | null>(null);
 
   const heartRateBpm = parseHeartRate(heartRateText);
+  const generalHeartRateBpm = parseHeartRate(generalHeartRateText);
+  const generalSystolicBloodPressure = parsePositiveNumber(
+    generalSystolicBloodPressureText,
+  );
   const ageBand = deriveAgeBand(age);
   const inputs = useMemo<ModelInputs>(
     () => ({
@@ -439,18 +505,71 @@ function App() {
     }),
     [ageBand, fever, painSeverity, vomiting, pas5],
   );
+  const generalInputs = useMemo<GeneralModelInputs>(
+    () => ({
+      age: generalAge,
+      sex: generalSex,
+      acuityCode: generalAcuityCode,
+      arrivalTransferContext: generalArrivalTransferContext,
+      fever: generalFever,
+      heartRateBpm: generalHeartRateBpm,
+      systolicBloodPressure: generalSystolicBloodPressure,
+    }),
+    [
+      generalAcuityCode,
+      generalAge,
+      generalArrivalTransferContext,
+      generalFever,
+      generalHeartRateBpm,
+      generalSex,
+      generalSystolicBloodPressure,
+    ],
+  );
   const readinessState = useMemo(
-    () => buildReadinessState(age, heartRateBpm),
-    [age, heartRateBpm],
+    () =>
+      isGeneralEDispoVariant
+        ? buildGeneralReadinessState(generalInputs)
+        : buildReadinessState(age, heartRateBpm),
+    [age, generalInputs, heartRateBpm],
   );
   const currentRunKey = useMemo(
-    () => buildModelRunKey(inputs, age, heartRateBpm, sampleCount),
-    [age, heartRateBpm, inputs, sampleCount],
+    () =>
+      isGeneralEDispoVariant
+        ? buildGeneralModelRunKey(generalInputs, sampleCount)
+        : buildModelRunKey(inputs, age, heartRateBpm, sampleCount),
+    [age, generalInputs, heartRateBpm, inputs, sampleCount],
   );
   const activeRun = modelRun?.key === currentRunKey ? modelRun : null;
   const activeCustomerRun =
     customerRun?.key === currentRunKey ? customerRun : null;
   const runModel = () => {
+    if (isGeneralEDispoVariant) {
+      if (!readinessState.canRun || generalHeartRateBpm === null) {
+        return;
+      }
+
+      try {
+        const prediction = predictGeneralEDispoDisposition(generalInputs);
+        setRunError(null);
+        setModelRun({
+          key: currentRunKey,
+          modelId: appVariantConfig.modelId,
+          age: generalInputs.age,
+          heartRateBpm: generalHeartRateBpm,
+          generalInputs,
+          inputs,
+          prediction,
+          sampleCount,
+        });
+        setPage("results");
+      } catch (error) {
+        setRunError(
+          error instanceof Error ? error.message : "Prediction failed.",
+        );
+      }
+      return;
+    }
+
     if (!readinessState.canRun || heartRateBpm === null) {
       return;
     }
@@ -462,6 +581,7 @@ function App() {
       setRunError(null);
       setModelRun({
         key: currentRunKey,
+        modelId: appVariantConfig.modelId,
         age,
         heartRateBpm,
         inputs,
@@ -502,6 +622,7 @@ function App() {
       setCustomerRunError(null);
       setCustomerRun({
         key: currentRunKey,
+        modelId: appVariantConfig.modelId,
         age,
         heartRateBpm,
         inputs,
@@ -520,6 +641,8 @@ function App() {
     activeRun?.age ?? age,
     activeRun?.heartRateBpm ?? heartRateBpm,
     activeRun?.sampleCount ?? sampleCount,
+    activeRun?.modelId ?? appVariantConfig.modelId,
+    activeRun?.generalInputs,
   );
   const customerSimulationState = useSimulationWorker(
     activeCustomerRun?.inputs ?? inputs,
@@ -527,6 +650,7 @@ function App() {
     activeCustomerRun?.age ?? age,
     activeCustomerRun?.heartRateBpm ?? heartRateBpm,
     activeCustomerRun?.sampleCount ?? sampleCount,
+    activeCustomerRun?.modelId ?? appVariantConfig.modelId,
   );
   const showCompareDock = page === "results" && savedRuns.length > 0;
 
@@ -603,7 +727,7 @@ function App() {
         ) : null}
         <main className="mx-auto flex max-w-7xl flex-col gap-10 px-5 py-8 max-[720px]:px-3">
           {page === "landing" && <LandingPage />}
-          {page === "customer" && (
+          {page === "customer" && !isGeneralEDispoVariant && (
             <CustomerPreviewPage
               age={age}
               setAge={setAge}
@@ -631,8 +755,40 @@ function App() {
               simulationState={customerSimulationState}
             />
           )}
-          {page === "explorer" && <ModelExplorerPage setPage={setPage} />}
-          {page === "use" && (
+          {page === "explorer" &&
+            (isGeneralEDispoVariant ? (
+              <GeneralModelExplorerPage setPage={setPage} />
+            ) : (
+              <ModelExplorerPage setPage={setPage} />
+            ))}
+          {page === "use" && isGeneralEDispoVariant && (
+            <GeneralUseModelPage
+              age={generalAge}
+              setAge={setGeneralAge}
+              sex={generalSex}
+              setSex={setGeneralSex}
+              acuityCode={generalAcuityCode}
+              setAcuityCode={setGeneralAcuityCode}
+              arrivalTransferContext={generalArrivalTransferContext}
+              setArrivalTransferContext={setGeneralArrivalTransferContext}
+              fever={generalFever}
+              setFever={setGeneralFever}
+              heartRateText={generalHeartRateText}
+              setHeartRateText={setGeneralHeartRateText}
+              heartRateBpm={generalHeartRateBpm}
+              systolicBloodPressureText={generalSystolicBloodPressureText}
+              setSystolicBloodPressureText={
+                setGeneralSystolicBloodPressureText
+              }
+              systolicBloodPressure={generalSystolicBloodPressure}
+              sampleCount={sampleCount}
+              setSampleCount={setSampleCount}
+              readinessState={readinessState}
+              runError={runError}
+              runModel={runModel}
+            />
+          )}
+          {page === "use" && !isGeneralEDispoVariant && (
             <UseModelPage
               age={age}
               setAge={setAge}
@@ -701,11 +857,55 @@ function ResultsInputBanner({
         <div className="flex w-fit max-w-full flex-wrap items-center justify-end gap-2 border-x border-border bg-muted/30 px-3 py-2 text-xs max-[760px]:w-full max-[760px]:justify-start">
           <span className="font-medium text-foreground">Current inputs</span>
           <BannerDatum label="Age" value={String(run.age)} />
-          <BannerDatum label="Band" value={valueLabels[run.inputs.ageBand]} />
-          <BannerDatum label="Pain" value={valueLabels[run.inputs.painSeverity]} />
-          <BannerDatum label="Fever" value={valueLabels[run.inputs.fever]} />
-          <BannerDatum label="Vomiting" value={valueLabels[run.inputs.vomiting]} />
-          <BannerDatum label="PAS-5" value={formatPas5Inputs(run.inputs.pas5)} />
+          {run.generalInputs ? (
+            <>
+              <BannerDatum
+                label="Sex"
+                value={generalOptionLabel(
+                  generalSexOptions,
+                  run.generalInputs.sex,
+                )}
+              />
+              <BannerDatum
+                label="Acuity"
+                value={generalOptionLabel(
+                  generalAcuityOptions,
+                  run.generalInputs.acuityCode,
+                )}
+              />
+              <BannerDatum
+                label="Arrival"
+                value={generalOptionLabel(
+                  generalArrivalTransferOptions,
+                  run.generalInputs.arrivalTransferContext,
+                )}
+              />
+              <BannerDatum
+                label="SBP"
+                value={`${run.generalInputs.systolicBloodPressure} mmHg`}
+              />
+            </>
+          ) : (
+            <>
+              <BannerDatum
+                label="Band"
+                value={valueLabels[run.inputs.ageBand]}
+              />
+              <BannerDatum
+                label="Pain"
+                value={valueLabels[run.inputs.painSeverity]}
+              />
+              <BannerDatum label="Fever" value={valueLabels[run.inputs.fever]} />
+              <BannerDatum
+                label="Vomiting"
+                value={valueLabels[run.inputs.vomiting]}
+              />
+              <BannerDatum
+                label="PAS-5"
+                value={formatPas5Inputs(run.inputs.pas5)}
+              />
+            </>
+          )}
           <BannerDatum label="HR" value={`${run.heartRateBpm} bpm`} />
           <Badge variant={ready ? "default" : "secondary"}>
             {ready ? "Model-ready" : "Input changed"}
@@ -911,20 +1111,43 @@ function summarizeRunDifferences(
     return "Reference run";
   }
 
+  if (run.modelId !== reference.modelId) {
+    return `Different model: ${reference.modelId} -> ${run.modelId}`;
+  }
+
   const differences: string[] = [];
   if (run.age !== reference.age) {
     differences.push(`Age: ${reference.age} -> ${run.age}`);
   }
 
-  runDifferenceFields.forEach((field) => {
-    const referenceValue = formatRunInputValue(reference.inputs[field.id]);
-    const runValue = formatRunInputValue(run.inputs[field.id]);
-    if (referenceValue !== runValue) {
+  if (run.generalInputs && reference.generalInputs) {
+    const generalDifferences = summarizeGeneralRunInputDifferences(
+      run.generalInputs,
+      reference.generalInputs,
+    );
+    differences.push(...generalDifferences);
+  } else {
+    runDifferenceFields.forEach((field) => {
+      const referenceValue = formatRunInputValue(reference.inputs[field.id]);
+      const runValue = formatRunInputValue(run.inputs[field.id]);
+      if (referenceValue !== runValue) {
+        differences.push(
+          `${field.label}: ${referenceValue} -> ${runValue}`,
+        );
+      }
+    });
+  }
+
+  if (run.generalInputs && reference.generalInputs) {
+    if (
+      run.generalInputs.systolicBloodPressure !==
+      reference.generalInputs.systolicBloodPressure
+    ) {
       differences.push(
-        `${field.label}: ${referenceValue} -> ${runValue}`,
+        `SBP: ${reference.generalInputs.systolicBloodPressure} mmHg -> ${run.generalInputs.systolicBloodPressure} mmHg`,
       );
     }
-  });
+  }
 
   if (run.heartRateBpm !== reference.heartRateBpm) {
     differences.push(
@@ -941,12 +1164,57 @@ function summarizeRunDifferences(
   return differences.length > 0 ? differences.join("; ") : "No key differences";
 }
 
+function summarizeGeneralRunInputDifferences(
+  run: GeneralModelInputs,
+  reference: GeneralModelInputs,
+): string[] {
+  const differences: string[] = [];
+
+  if (run.sex !== reference.sex) {
+    differences.push(
+      `Sex: ${generalOptionLabel(generalSexOptions, reference.sex)} -> ${generalOptionLabel(generalSexOptions, run.sex)}`,
+    );
+  }
+
+  if (run.acuityCode !== reference.acuityCode) {
+    differences.push(
+      `Acuity: ${generalOptionLabel(generalAcuityOptions, reference.acuityCode)} -> ${generalOptionLabel(generalAcuityOptions, run.acuityCode)}`,
+    );
+  }
+
+  if (run.arrivalTransferContext !== reference.arrivalTransferContext) {
+    differences.push(
+      `Arrival: ${generalOptionLabel(
+        generalArrivalTransferOptions,
+        reference.arrivalTransferContext,
+      )} -> ${generalOptionLabel(
+        generalArrivalTransferOptions,
+        run.arrivalTransferContext,
+      )}`,
+    );
+  }
+
+  if (run.fever !== reference.fever) {
+    differences.push(
+      `Fever: ${valueLabels[reference.fever]} -> ${valueLabels[run.fever]}`,
+    );
+  }
+
+  return differences;
+}
+
 function formatRunInputValue(value: ModelInputs[keyof ModelInputs]): string {
   if (typeof value === "object") {
     return formatPas5Inputs(value);
   }
 
   return valueLabels[String(value)] ?? String(value);
+}
+
+function simulationSeedForModel(modelId: ModelRun["modelId"]): number {
+  return modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID
+    ? 20260429
+    : modelMetadata.seed;
 }
 
 function PrototypeRibbon({ onClick }: { onClick: () => void }) {
@@ -1642,6 +1910,10 @@ function AppHeader({
   page: Page;
   setPage: (page: Page) => void;
 }) {
+  const visibleNavigationItems = isGeneralEDispoVariant
+    ? navigationItems.filter((item) => item.id !== "customer")
+    : navigationItems;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 pl-24 pr-4 backdrop-blur max-[760px]:px-3 max-[760px]:pt-9">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 max-[760px]:min-h-0 max-[760px]:flex-col max-[760px]:items-stretch max-[760px]:gap-2 max-[760px]:pb-2">
@@ -1658,7 +1930,7 @@ function AppHeader({
               E-Dispo
             </span>
             <span className="block text-xs text-muted-foreground max-[430px]:hidden">
-              Risk characterization
+              {appVariantConfig.shortModelLabel}
             </span>
           </span>
         </button>
@@ -1666,7 +1938,7 @@ function AppHeader({
           className="flex min-w-0 flex-wrap justify-end gap-1.5 max-[760px]:grid max-[760px]:w-full max-[760px]:grid-cols-6 max-[760px]:gap-1 max-[360px]:grid-cols-3"
           aria-label="Primary navigation"
         >
-          {navigationItems.map((item) => {
+          {visibleNavigationItems.map((item) => {
             const Icon = item.icon;
             return (
               <Tooltip key={item.id}>
@@ -1703,23 +1975,33 @@ function AppHeader({
 }
 
 function LandingPage() {
+  const generalCopy = isGeneralEDispoVariant;
+
   return (
     <div className="flex flex-col gap-14">
       <section className="grid min-h-[calc(100svh-8rem)] grid-cols-[minmax(0,0.92fr)_minmax(360px,1.08fr)] items-center gap-12 max-[900px]:grid-cols-1">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-5">
             <h1 className="max-w-3xl text-7xl font-semibold leading-[0.98] tracking-normal max-[760px]:text-5xl">
-              E-Dispo
+              {appVariantConfig.siteTitle}
             </h1>
             <p className="max-w-2xl text-2xl font-medium leading-9 text-foreground max-[760px]:text-xl">
-              Answer the questions and hit run!
+              {generalCopy
+                ? "Run the general non-trauma education model."
+                : "Answer the questions and hit run!"}
             </p>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
-              This is a prototype. See disclaimer.
+              {generalCopy
+                ? "This is a separate all-sex/all-age NHAMCS source-scope model. See disclaimer."
+                : "This is a prototype. See disclaimer."}
             </p>
           </div>
           <div className="grid max-w-xs grid-cols-1 gap-3">
-            <LandingMetric label="Model" value="e-dispo-v4.0" />
+            <LandingMetric
+              label="Model"
+              value={appVariantConfig.shortModelLabel}
+            />
+            <LandingMetric label="Scope" value={appVariantConfig.scope} />
           </div>
         </div>
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -1729,7 +2011,9 @@ function LandingPage() {
                 Visualize the uncertainty
               </p>
               <h2 className="mt-1 text-2xl font-semibold">
-                What are the odds this guy gets admitted?
+                {generalCopy
+                  ? "What is the modeled admission probability?"
+                  : "What are the odds this guy gets admitted?"}
               </h2>
             </div>
             <Badge variant="outline">10,000 draws</Badge>
@@ -1978,6 +2262,131 @@ function EvidencePanel({ node }: { node: ExplorerNode }) {
   );
 }
 
+function GeneralModelExplorerPage({ setPage }: { setPage: (page: Page) => void }) {
+  const modelPieces = [
+    {
+      label: "Age",
+      rule: "age_centered_40 = age - 40",
+      reason: "Age is available before disposition and has a stable direction in the source-scope fit.",
+    },
+    {
+      label: "Sex",
+      rule: "Female code 2 activates the prespecified main-effect term; male code 1 is reference.",
+      reason: "Sex is presentation-available, but fairness-sensitive. It is included only in this separate sex-adjusted runnable model.",
+    },
+    {
+      label: "Triage acuity",
+      rule: "NHAMCS IMMEDR levels are categorical. Urgent is reference; unknown and blank are explicit levels.",
+      reason: "Acuity is available before disposition and strongly separates broad non-trauma admission patterns.",
+    },
+    {
+      label: "Arrival transfer context",
+      rule: "No transfer-in context is reference; transfer-in, not applicable, unknown, and blank are explicit levels.",
+      reason: "Transfer-in context is an early arrival feature and can represent source-scope severity/context.",
+    },
+    {
+      label: "Initial vitals",
+      rule: "fever_or_temp, tachycardia_burden = max(HR - 100, 0) / 10, hypotension_burden = max(100 - SBP, 0) / 10",
+      reason: "Vitals are objective pre-disposition features and avoid downstream care-process leakage.",
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        icon={BarChart3}
+        title="General Model Explorer"
+        description="This page explains the separate all-sex/all-age non-trauma model. It does not replace the abdominal-pain E-Dispo model."
+        action={
+          <Button type="button" onClick={() => setPage("use")}>
+            Use these inputs
+            <ArrowRight data-icon="inline-end" />
+          </Button>
+        }
+      />
+      <Alert>
+        <Info />
+        <AlertTitle>Scope boundary</AlertTitle>
+        <AlertDescription>
+          general-E-Dispo-model-v1-sex-adjusted is an educational/statistical
+          NHAMCS source-scope model. It is not external validation,
+          transportability evidence, clinical decision support, or medical
+          advice.
+        </AlertDescription>
+      </Alert>
+      <section className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 max-[980px]:grid-cols-1">
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Formula</CardTitle>
+            <CardDescription>
+              Prespecified sex-adjusted general model.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <DefinitionRow
+              label="model_id"
+              value="general-E-Dispo-model-v1-sex-adjusted"
+            />
+            <DefinitionRow
+              label="Source artifact"
+              value="general-E-Dispo-model-v1-plus-sex"
+            />
+            <DefinitionRow
+              label="Formula"
+              value="admit ~ age_centered_40 + sex + acuity_code + arrival_transfer_context + fever_or_temp + tachycardia_burden + hypotension_burden"
+            />
+            <DefinitionRow
+              label="Endpoint"
+              value="Admission vs routine home discharge; transfer excluded from fitting."
+            />
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Not fitted</CardTitle>
+            <CardDescription>
+              Kept out to avoid unfairness, leakage, or overreach.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {[
+              "race/ethnicity",
+              "payer",
+              "region",
+              "MSA",
+              "pain",
+              "vomiting",
+              "diagnosis",
+              "imaging",
+              "medications",
+              "wait time",
+              "length of visit",
+              "disposition fields",
+            ].map((item) => (
+              <Badge key={item} variant="secondary">
+                {item}
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+      <section className="grid grid-cols-2 gap-4 max-[760px]:grid-cols-1">
+        {modelPieces.map((piece) => (
+          <Card key={piece.label} className="rounded-lg" size="sm">
+            <CardHeader>
+              <CardTitle className="text-base">{piece.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm leading-6">
+              <DefinitionRow label="Rule" value={piece.rule} />
+              <DefinitionRow label="Why defensible" value={piece.reason} />
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 function EvidenceDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-background p-3">
@@ -2009,6 +2418,7 @@ function ResultsPage({
   const simulation = simulationState.result;
   const pointEstimate = run?.prediction.probabilityAdmit ?? null;
   const complement = run?.prediction.probabilityTreatAndRelease ?? null;
+  const simulationSeed = run ? simulationSeedForModel(run.modelId) : modelMetadata.seed;
 
   if (run === null) {
     return (
@@ -2100,7 +2510,7 @@ function ResultsPage({
             <Badge variant="outline">
               {run.sampleCount.toLocaleString()} simulations
             </Badge>
-            <Badge variant="secondary">seed {modelMetadata.seed}</Badge>
+            <Badge variant="secondary">seed {simulationSeed}</Badge>
           </CardTitle>
           <CardDescription>
             Each bar counts model runs for the saved input profile.
@@ -2195,12 +2605,16 @@ function ResultsPage({
                 <p className="text-sm font-medium">Run metadata</p>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm max-[420px]:grid-cols-1">
                   <DefinitionRow
+                    label="Model"
+                    value={run.modelId}
+                  />
+                  <DefinitionRow
                     label="Simulations"
                     value={run.sampleCount.toLocaleString()}
                   />
                   <DefinitionRow
                     label="Seed"
-                    value={String(modelMetadata.seed)}
+                    value={String(simulationSeed)}
                   />
                 </div>
               </div>
@@ -2217,6 +2631,7 @@ function ResultsPage({
       <StoryView
         age={run.age}
         heartRateBpm={run.heartRateBpm}
+        generalInputs={run.generalInputs}
         inputs={run.inputs}
         prediction={run.prediction}
         simulation={simulation}
@@ -2274,12 +2689,14 @@ function ResultsPage({
 function StoryView({
   age,
   heartRateBpm,
+  generalInputs,
   inputs,
   prediction,
   simulation,
 }: {
   age: number;
   heartRateBpm: number | null;
+  generalInputs?: GeneralModelInputs;
   inputs: ModelInputs;
   prediction: PredictionResult | null;
   simulation: SimulationResult | null;
@@ -2296,10 +2713,16 @@ function StoryView({
         {prediction && simulation && heartRateBpm !== null ? (
           <>
             <p>
-              For age {age}, {valueLabels[inputs.painSeverity].toLowerCase()}{" "}
-              pain, fever {valueLabels[inputs.fever].toLowerCase()}, vomiting{" "}
-              {valueLabels[inputs.vomiting].toLowerCase()}, and HR{" "}
-              {heartRateBpm} bpm, the middle simulation estimate is{" "}
+              {generalInputs
+                ? generalStoryIntro(age, heartRateBpm, generalInputs)
+                : `For age ${age}, ${valueLabels[
+                    inputs.painSeverity
+                  ].toLowerCase()} pain, fever ${valueLabels[
+                    inputs.fever
+                  ].toLowerCase()}, vomiting ${valueLabels[
+                    inputs.vomiting
+                  ].toLowerCase()}, and HR ${heartRateBpm} bpm`}
+              , the middle simulation estimate is{" "}
               <strong>{formatPercent(simulation.median)}</strong>.
             </p>
             <p>
@@ -2324,6 +2747,27 @@ function StoryView({
       </CardContent>
     </Card>
   );
+}
+
+function generalStoryIntro(
+  age: number,
+  heartRateBpm: number,
+  inputs: GeneralModelInputs,
+): string {
+  return `For age ${age}, ${generalOptionLabel(
+    generalSexOptions,
+    inputs.sex,
+  )}, ${generalOptionLabel(
+    generalAcuityOptions,
+    inputs.acuityCode,
+  ).toLowerCase()} acuity, ${generalOptionLabel(
+    generalArrivalTransferOptions,
+    inputs.arrivalTransferContext,
+  ).toLowerCase()}, fever ${valueLabels[
+    inputs.fever
+  ].toLowerCase()}, HR ${heartRateBpm} bpm, and SBP ${
+    inputs.systolicBloodPressure
+  } mmHg`;
 }
 
 function DistributionPreview() {

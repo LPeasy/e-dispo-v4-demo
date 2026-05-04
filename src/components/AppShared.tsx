@@ -165,17 +165,20 @@ export function AgeInputField({
   setAge,
   description,
   showCenteredAge = false,
+  centerAt = 42,
 }: {
   id: string;
   age: number;
   setAge: (age: number) => void;
   description: string;
   showCenteredAge?: boolean;
+  centerAt?: number;
 }) {
   const [ageDraft, setAgeDraft] = useState(() => ageDraftFromValue(age));
   const parsedAge = parseAgeDraft(ageDraft);
   const hasInvalidText = ageDraft.trim().length > 0 && parsedAge === null;
-  const centeredAge = parsedAge === null ? "pending" : String(parsedAge - 42);
+  const centeredAge =
+    parsedAge === null ? "pending" : String(parsedAge - centerAt);
 
   return (
     <Field data-invalid={hasInvalidText || undefined}>

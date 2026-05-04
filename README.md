@@ -1,17 +1,28 @@
 # E-Dispo Prototype Web App
 
-This is a Vite + React + TypeScript educational/statistical app for reviewing a narrow ED disposition model.
+This is a Vite + React + TypeScript educational/statistical app for reviewing ED disposition models.
 
 The app estimates `P(admit)` for adult men ages 18-64 who are already in the emergency department with non-traumatic abdominal pain. Here, `admit` means same-hospital admission or hospitalization after explicit endpoint exclusions.
 
 The app is not medical advice. It is not diagnosis, triage, treatment guidance, discharge guidance, or clinical decision support.
 
+## Public Site Variants
+
+The repo now supports two separate static builds from the same codebase:
+
+- `e_dispo_v4`: current E-Dispo educational app behavior for the adult-male non-traumatic abdominal-pain model workstream.
+- `general_e_dispo`: separate `general-E-Dispo-model-v1-sex-adjusted` runnable demo for all-sex/all-age NHAMCS non-trauma records.
+
+The general model is parallel. It does not replace the abdominal-pain model and does not create external validation, transportability, or clinical-use evidence.
+
+The GitHub Pages workflow builds the default root app plus both named subdirectory builds before uploading `dist/`.
+
 ## Current Active Model
 
-The current active model is the reduced pooled NHAMCS 2018-2022 `e-dispo-v4.0` model:
+The current active model is the reduced pooled NHAMCS 2018-2022 `e-dispo-v4.1-pas5-high-acuity-surrogate` model:
 
 ```text
-e-dispo-v4.0
+e-dispo-v4.1-pas5-high-acuity-surrogate
 ```
 
 In plain English, the active estimate uses:
@@ -21,23 +32,25 @@ In plain English, the active estimate uses:
 - fever or objective temperature proxy
 - vomiting
 - observed heart rate as `tachycardia_burden = max(HR - 100, 0) / 10`
+- PAS-5 `high_acuity_proxy`, where A1/A2 activate the term and A3/A4/A5 are reference
 
-Missing pain and missing heart rate do not silently become normal or reference values. The v4 empirical estimate requires observed pain and observed heart rate.
+Missing pain and missing heart rate do not silently become normal or reference values. The v4.1 empirical estimate requires observed pain and observed heart rate.
 
 The v4 pain term does not claim a monotonic pain dose-response. It uses `pain_severe` because the previous flexible mild/moderate contrast was imprecise while severe pain retained useful signal.
 
 Unknown fever or vomiting does not activate the empirical "yes" coefficient and should not be read as confirmed absence.
 
+PAS-5 is bridged through NHAMCS `IMMEDR` clinician-acuity surrogate evidence because direct PAS-5 patient answers are not observed in NHAMCS.
+
 ## What Is Not Active
 
 These concepts do not affect current `P(admit)`:
 
-- AAP-3
 - broad pain region
 - onset or duration
 - constant versus intermittent pain pattern
 - hematemesis
-- acuity
+- direct clinician acuity
 - systolic blood pressure
 - the E-Dispatch arcade easter egg
 
@@ -92,6 +105,9 @@ npm run dev
 npm run test
 npm run lint
 npm run build
+npm run build:v4
+npm run build:general
+npm run build:all-sites
 npm run check:dist
 ```
 
@@ -102,6 +118,9 @@ $env:Path = "C:\Users\lawto\Documents\10_Projects\Models\ED_Disposition_Personal
 npm run test
 npm run lint
 npm run build
+npm run build:v4
+npm run build:general
+npm run build:all-sites
 npm run check:dist
 ```
 

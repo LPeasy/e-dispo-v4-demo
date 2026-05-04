@@ -44,7 +44,9 @@ jobs:
         run: npm run lint
 
       - name: Build
-        run: npm run build
+        run: |
+          npm run build
+          npm run build:all-sites
 
       - name: Check dist portability
         run: npm run check:dist

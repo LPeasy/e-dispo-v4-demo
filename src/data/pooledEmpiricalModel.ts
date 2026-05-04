@@ -1,4 +1,8 @@
-export type PooledEmpiricalEvidenceTier = "dataset_derived"
+export type PooledEmpiricalEvidenceTier =
+  | "dataset_derived"
+  | "dataset_derived_surrogate"
+
+export type PooledEmpiricalSurrogateSource = "NHAMCS_IMMEDR"
 
 export type PooledEmpiricalModelId =
   | "pooled_empirical_v2_age_pain_fever_vomiting_tachycardia"
@@ -14,6 +18,8 @@ export type PooledEmpiricalPredictor = {
   reference: boolean
   se_or_sd: number
   source: "NHAMCS_2018_2022_POOLED"
+  surrogate_limitation?: string
+  surrogate_source?: PooledEmpiricalSurrogateSource
   term:
     | "intercept"
     | "age_centered"
@@ -51,6 +57,8 @@ export type PooledEmpiricalModelArtifact = {
     NHAMCS_2018_2022_POOLED: {
       admission_events: number
       event_count_gate_passed: boolean
+      model_fit_admission_events?: number
+      model_fit_complete_case_n?: number
       strict_binary_unweighted_n: number
       weighted_admission_prevalence: number
     }
@@ -79,6 +87,8 @@ export type PooledEmpiricalModelArtifact = {
     blockers: string
     evidence_tier: PooledEmpiricalEvidenceTier
     level: string
+    surrogate_limitation?: string
+    surrogate_source?: PooledEmpiricalSurrogateSource
     term:
       | "intercept"
       | "age_centered"
@@ -105,7 +115,19 @@ export type PooledEmpiricalModelArtifact = {
     full_source_scope_screen_report?: string
     missingness_performance?: string
     optimism_corrected_performance?: string
-    performance_intervals: string
+    pas5_calibration?: string
+    pas5_cell_counts?: string
+    pas5_coefficients?: string
+    pas5_covariance?: string
+    pas5_decile_calibration?: string
+    pas5_draws_app?: string
+    pas5_draws_long?: string
+    pas5_gate_decision?: string
+    pas5_leave_one_year_out?: string
+    pas5_mapping?: string
+    pas5_missingness?: string
+    pas5_report?: string
+    performance_intervals?: string
     subgroup_calibration?: string
     subgroup_performance?: string
     transportability_track?: string

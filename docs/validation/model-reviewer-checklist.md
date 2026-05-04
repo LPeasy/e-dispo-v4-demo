@@ -20,16 +20,16 @@ Use this checklist to review the active reduced pooled empirical educational mod
 | The active app uses only the validated reduced pooled empirical export for P(admit). | [ ] | [ ] | [ ] | |
 | The model-fit artifact includes coefficients, standard errors, intervals, and covariance. | [ ] | [ ] | [ ] | |
 | The performance report includes AUC, Brier score, calibration intercept, and calibration slope. | [ ] | [ ] | [ ] | |
-| The performance report explains that AUROC 0.713 is moderate and not clinically deployable. | [ ] | [ ] | [ ] | |
+| The performance report explains that AUROC 0.759 is moderate and not clinically deployable. | [ ] | [ ] | [ ] | |
 | The performance report explains that Brier improvement over prevalence-only prediction is small. | [ ] | [ ] | [ ] | |
 | The empirical protocol requires covariance or posterior draws before dataset-derived simulation. | [ ] | [ ] | [ ] | |
 | Pain severity has a documented monotonicity, confounding, missingness, and transportability decision rule. | [ ] | [ ] | [ ] | |
 | NHAMCS and MIMIC are treated as derivation/calibration and replication/proxy-validation sources, not naively pooled. | [ ] | [ ] | [ ] | |
-| The UI/documentation states that broad pain region, onset/duration, pain pattern, hematemesis, acuity, SBP, prototype inputs, and PAS-5 do not affect `e-dispo-v4.0` empirical P(admit). | [ ] | [ ] | [ ] | |
-| The reviewer has checked whether requiring observed pain and observed HR for `e-dispo-v4.0` is acceptable. | [ ] | [ ] | [ ] | |
-| The UI/documentation states that HR missing is not normal HR and withholds the `e-dispo-v4.0` empirical estimate. | [ ] | [ ] | [ ] | |
+| The UI/documentation states that broad pain region, onset/duration, pain pattern, hematemesis, direct clinician acuity, SBP, and other prototype inputs remain outside `e-dispo-v4.1` empirical P(admit). | [ ] | [ ] | [ ] | |
+| The reviewer has checked whether requiring observed pain and observed HR for `e-dispo-v4.1` is acceptable. | [ ] | [ ] | [ ] | |
+| The UI/documentation states that HR missing is not normal HR and withholds the `e-dispo-v4.1` empirical estimate. | [ ] | [ ] | [ ] | |
 | Unknown fever/vomiting wording does not imply confirmed absence. | [ ] | [ ] | [ ] | |
-| PAS-5 is labeled `patient_perceived_acuity_proxy`, not dataset-derived as direct patient self-assessment and not advice. | [ ] | [ ] | [ ] | |
+| PAS-5 is labeled `patient_perceived_acuity_proxy`; A1/A2 activate `high_acuity_proxy`, and the coefficient is documented as NHAMCS `IMMEDR` surrogate-derived rather than direct patient self-assessment validation. | [ ] | [ ] | [ ] | |
 | Sensitivity A and Sensitivity B are clearly report-only. | [ ] | [ ] | [ ] | |
 | Limitations are visible and understandable to a non-technical reviewer. | [ ] | [ ] | [ ] | |
 | No document claims clinical validity or safety. | [ ] | [ ] | [ ] | |
@@ -39,8 +39,8 @@ Use this checklist to review the active reduced pooled empirical educational mod
 
 1. Are the endpoint definitions understandable without technical background?
 2. Do any parts sound like clinical advice or a real deployment claim?
-3. Is the moderate predictive power of the reduced pooled model acceptable for the educational app, given AUROC 0.713 and small Brier improvement?
+3. Is the moderate predictive power of the reduced pooled model acceptable for the educational app, given AUROC 0.759 and the PAS-5/IMMEDR surrogate limitation?
 4. Which missingness, subgroup, or fairness checks should be prioritized next?
-5. Is the observed-pain and observed-HR complete-case requirement acceptable for the `e-dispo-v4.0` empirical estimate?
+5. Is the observed-pain and observed-HR complete-case requirement acceptable for the `e-dispo-v4.1` empirical estimate?
 6. What wording should be changed before class submission or instructor review?
-7. What evidence would you require before allowing PAS-5, acuity, SBP, or tachycardia duration to affect P(admit)?
+7. What evidence would you require before treating PAS-5 as direct patient self-acuity evidence or before allowing SBP or tachycardia duration to affect P(admit)?

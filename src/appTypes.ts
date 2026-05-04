@@ -1,4 +1,9 @@
-import type { ModelInputs, PredictionResult } from "@/model/types";
+import type {
+  GeneralModelInputs,
+  ModelInputs,
+  PredictionResult,
+  RunnableModelId,
+} from "@/model/types";
 
 export type Page = "landing" | "customer" | "explorer" | "use" | "results" | "docs";
 export type SimulationCount = 1000 | 10000 | 100000;
@@ -8,8 +13,10 @@ export type ReadinessState = {
 };
 export type ModelRun = {
   key: string;
+  modelId: RunnableModelId;
   age: number;
   heartRateBpm: number;
+  generalInputs?: GeneralModelInputs;
   inputs: ModelInputs;
   prediction: PredictionResult;
   sampleCount: SimulationCount;

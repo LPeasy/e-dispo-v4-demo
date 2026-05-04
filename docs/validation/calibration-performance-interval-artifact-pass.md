@@ -2,9 +2,9 @@
 
 Date: 2026-05-03
 
-Model: `e-dispo-v4.0`
+Model: archived `e-dispo-v4.0` predecessor; active app model is now `e-dispo-v4.1-pas5-high-acuity-surrogate`.
 
-This note documents the reviewer-facing calibration, performance interval, subgroup, missingness, optimism-correction, full-source NHAMCS scope-screen, and blocker artifacts added for the active educational/statistical model. The model remains educational only. These artifacts do not establish clinical validity, deployment readiness, external validation, or transportability.
+This note documents the reviewer-facing calibration, performance interval, subgroup, missingness, optimism-correction, full-source NHAMCS scope-screen, and blocker artifacts added for the v4.0 educational/statistical predecessor. The current PAS-5 v4.1 artifacts are documented separately in `pas5-acuity-candidate-screen.md` and `performance-report.md`. The model remains educational only. These artifacts do not establish clinical validity, deployment readiness, external validation, or transportability.
 
 ## New Artifacts
 

@@ -1,6 +1,7 @@
 import { runLatinHypercubeSimulation } from "./latinHypercube"
 import {
   CoefficientDrawAssetError,
+  loadCoefficientDrawsForModel,
   loadPooledEmpiricalCoefficientDraws,
 } from "@/data/pooledEmpiricalCoefficientDraws"
 import type { PooledEmpiricalCoefficientDraw } from "@/data/pooledEmpiricalCoefficientDraws"
@@ -16,9 +17,9 @@ const simulationCache = new Map<string, SimulationResult>()
 const simulationFailureMessage =
   "The range view could not finish. Try running the model again."
 
-export type CoefficientDrawLoader = () => Promise<
-  PooledEmpiricalCoefficientDraw[]
->
+export type CoefficientDrawLoader = (
+  modelId: NonNullable<SimulationRequest["modelId"]>
+) => Promise<PooledEmpiricalCoefficientDraw[]>
 
 export type RunCachedSimulationOptions = {
   loadCoefficientDraws?: CoefficientDrawLoader
@@ -30,8 +31,12 @@ export async function runCachedSimulation(
 ): Promise<SimulationResponse> {
   const sampleCount = request.sampleCount ?? modelMetadata.sampleCount
   const seed = request.seed ?? modelMetadata.seed
+  const modelId =
+    request.modelId ?? "e-dispo-v4.1-pas5-high-acuity-surrogate"
   const inputHash = inputHashForSimulation({
+    modelId,
     inputs: request.inputs,
+    generalInputs: request.generalInputs,
     age: request.age,
     heartRateBpm: request.heartRateBpm,
     sampleCount,
@@ -50,16 +55,23 @@ export async function runCachedSimulation(
   }
 
   try {
-    const coefficientDraws = await (
-      options.loadCoefficientDraws ?? loadPooledEmpiricalCoefficientDraws
-    )()
+    const coefficientDraws =
+      options.loadCoefficientDraws !== undefined
+        ? await options.loadCoefficientDraws(modelId)
+        : modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate"
+          ? await loadPooledEmpiricalCoefficientDraws()
+          : await loadCoefficientDrawsForModel(modelId)
     const result = runLatinHypercubeSimulation(
       request.inputs,
       sampleCount,
       seed,
       request.age,
       request.heartRateBpm === undefined ? 88 : request.heartRateBpm,
-      coefficientDraws
+      coefficientDraws,
+      {
+        modelId,
+        generalInputs: request.generalInputs,
+      }
     )
     simulationCache.set(inputHash, result)
 

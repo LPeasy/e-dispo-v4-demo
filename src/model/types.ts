@@ -41,6 +41,37 @@ export type OnsetDuration =
 export type PainPattern = "constant" | "intermittent" | "unknown";
 export type BinarySymptom = "yes" | "no" | "unknown";
 
+export type RunnableModelId =
+  | "e-dispo-v4.1-pas5-high-acuity-surrogate"
+  | "general-E-Dispo-model-v1-sex-adjusted";
+export type GeneralSex = "1" | "2";
+export type GeneralAcuityCode =
+  | "blank"
+  | "unknown"
+  | "no_triage_esa_conducts_triage"
+  | "immediate"
+  | "emergent"
+  | "urgent"
+  | "semi_urgent"
+  | "nonurgent"
+  | "no_nursing_triage_esa";
+export type GeneralArrivalTransferContext =
+  | "blank"
+  | "unknown"
+  | "not_applicable"
+  | "yes_transferred_from_hospital_or_urgent_care"
+  | "no_not_transferred_from_hospital_or_urgent_care";
+
+export interface GeneralModelInputs {
+  age: number;
+  sex: GeneralSex;
+  acuityCode: GeneralAcuityCode;
+  arrivalTransferContext: GeneralArrivalTransferContext;
+  fever: Exclude<BinarySymptom, "unknown">;
+  heartRateBpm: number | null;
+  systolicBloodPressure: number | null;
+}
+
 export interface ModelInputs {
   ageBand: AgeBand;
   broadPainRegion: PainRegion;

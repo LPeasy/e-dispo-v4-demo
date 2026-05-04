@@ -2,7 +2,7 @@
 
 Date: 2026-05-03
 
-Active model: `e-dispo-v4.0`
+Active app model: `e-dispo-v4.1-pas5-high-acuity-surrogate`
 
 This note documents a source-scope stress test of the fixed active educational model. It is not external validation, transportability evidence, clinical decision support, triage software, diagnosis, treatment advice, or a model update.
 
@@ -15,7 +15,7 @@ The pipeline now builds two parallel pooled NHAMCS 2018-2022 strict-binary endpo
 
 The endpoint-only full ED screen removes the active model's age, sex, abdominal-pain, and trauma filters, then keeps only records with the same strict admit-vs-routine-home-discharge endpoint. The non-trauma sensitivity screen removes age, sex, and abdominal-pain filters but retains the non-trauma restriction.
 
-Both screens apply the fixed active `e-dispo-v4.0` coefficients without refitting. Predictions are emitted only for rows with observed age, pain severe/non-severe, fever/temp proxy, vomiting proxy, and observed HR/tachycardia burden. Sparse cells, no-outcome-variation slices, missing source cohorts, and no-complete-case slices are written as explicit blocker/status rows.
+Both screens apply the fixed predecessor `e-dispo-v4.0` coefficients without refitting. They remain archived source-scope stress tests. Active v4.1 additionally requires PAS-5/IMMEDR availability for `high_acuity_proxy`, so these older fixed-coefficient screens should not be read as the current v4.1 validation result. Sparse cells, no-outcome-variation slices, missing source cohorts, and no-complete-case slices are written as explicit blocker/status rows.
 
 ## Outputs
 

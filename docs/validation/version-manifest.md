@@ -2,7 +2,7 @@
 
 Date: 2026-04-28
 
-Status note, 2026-05-01: this file records the earlier v3.1 NHAMCS 2022 baseline. The current active educational app model is the pooled NHAMCS 2018-2022 reduced export `e-dispo-v4.0`, documented in `performance-report.md` and `predictive-power-usability-review.md`. The prior v2 export `pooled_empirical_v2_age_pain_fever_vomiting_tachycardia` remains archived in `src/data/pooledEmpiricalModel.ts`.
+Status note, 2026-05-04: this file records the earlier v3.1 NHAMCS 2022 baseline. The current active educational app model is the pooled NHAMCS 2018-2022 reduced export `e-dispo-v4.1-pas5-high-acuity-surrogate`, documented in `performance-report.md`, `pas5-acuity-candidate-screen.md`, and `predictive-power-usability-review.md`. The prior v2 export `pooled_empirical_v2_age_pain_fever_vomiting_tachycardia` remains archived in `src/data/pooledEmpiricalModel.ts`, and `e-dispo-v4.0` remains archived in `src/data/eDispoV4Model.ts`.
 
 ## Baseline Identity
 
@@ -52,7 +52,7 @@ Status note, 2026-05-01: this file records the earlier v3.1 NHAMCS 2022 baseline
 
 ## Known Limitations
 
-- In this historical v3.1 baseline, app coefficients remained prototype assumptions; the current app has since activated the reduced pooled empirical `e-dispo-v4.0` export for educational use.
+- In this historical v3.1 baseline, app coefficients remained prototype assumptions; the current app has since activated the reduced pooled empirical `e-dispo-v4.1-pas5-high-acuity-surrogate` export for educational use.
 - The reduced NHAMCS fit includes only `ageBand` and `painSeverity`.
 - Onset/duration and constant/intermittent pattern are unavailable in the current NHAMCS mapping.
 - Broad pain region, vomiting, and fever are not included in the reduced fit because their support is weak or proxy-dependent.

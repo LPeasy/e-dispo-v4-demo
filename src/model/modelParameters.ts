@@ -10,15 +10,15 @@ import type {
 import { parameterTermRecords } from "./parameterRegistry"
 
 export const modelMetadata = {
-  name: "e-dispo-v4.0 pooled empirical model educational demo",
+  name: "e-dispo-v4.1 PAS-5 high-acuity surrogate educational demo",
   endpoint:
     "P(admit | endpoint-refined binary cohort, reduced empirical inputs)",
   endpointDefinition:
     "admit means same-hospital hospitalization/admission, including observation -> hospitalized when documented.",
   sampleCount: 100000,
-  seed: 20260428,
+  seed: 20260504,
   coefficientStatus:
-    "Dataset-derived e-dispo-v4.0 pooled NHAMCS 2018-2022 reduced empirical coefficients for educational use only; not clinical decision support.",
+    "Dataset-derived e-dispo-v4.1 pooled NHAMCS 2018-2022 coefficients with PAS-5 high-acuity proxy bridged through IMMEDR surrogate evidence for educational use only; not clinical decision support.",
 }
 
 export const intercept: LogisticTerm = {

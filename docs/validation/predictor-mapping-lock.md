@@ -4,7 +4,7 @@ Date: 2026-04-28
 
 This document locks the first-pass NHAMCS 2022 predictor support decision before empirical fitting. In plain English: the app has seven prototype inputs, but the first NHAMCS reduced fit can defend only two of them.
 
-Status note, 2026-05-01: the active app model is now `e-dispo-v4.0`, a later pooled NHAMCS 2018-2022 refit using exact age, `pain_severe`, fever/temperature proxy, vomiting, and tachycardia burden. This document remains historical support for the earlier first-pass mapping.
+Status note, 2026-05-04: the active app model is now `e-dispo-v4.1-pas5-high-acuity-surrogate`, a later pooled NHAMCS 2018-2022 refit using exact age, `pain_severe`, fever/temperature proxy, vomiting, tachycardia burden, and PAS-5 `high_acuity_proxy` bridged through NHAMCS `IMMEDR` surrogate evidence. This document remains historical support for the earlier first-pass mapping.
 
 | App predictor | NHAMCS support | Fit status | Locked decision |
 |---|---|---|---|

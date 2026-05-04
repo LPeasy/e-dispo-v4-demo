@@ -2,7 +2,7 @@
 
 Date: 2026-05-01
 
-Status: candidate-variable screen only. The active `e-dispo-v4.0` educational model is unchanged.
+Status: candidate-variable screen only. Nausea is not promoted into the active `e-dispo-v4.1-pas5-high-acuity-surrogate` educational model.
 
 ## Intent
 

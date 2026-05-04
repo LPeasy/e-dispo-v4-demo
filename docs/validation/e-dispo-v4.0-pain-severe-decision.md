@@ -4,7 +4,7 @@ Date: 2026-05-01
 
 ## Decision
 
-Use `pain_severe = 1[pain_bin3 == severe]` in the active educational model `e-dispo-v4.0`.
+Historical decision note. Use `pain_severe = 1[pain_bin3 == severe]` in archived educational model `e-dispo-v4.0`; the active app model is now `e-dispo-v4.1-pas5-high-acuity-surrogate` and retains this pain representation.
 
 Do not use the old flexible active pain setup as the active model term. Preserve the prior v2 artifact as archived evidence only.
 
@@ -35,7 +35,7 @@ Collapsing mild and moderate into non-severe is logically cleaner because it kee
 The active model may say:
 
 - Severe pain is associated with higher fitted admission odds than non-severe pain in this pooled NHAMCS educational cohort.
-- Mild and moderate pain are collapsed as non-severe in `e-dispo-v4.0`.
+- Mild and moderate pain are collapsed as non-severe in archived `e-dispo-v4.0` and retained in active v4.1.
 - The model remains educational/statistical only.
 
 The active model must not say:

@@ -5,7 +5,7 @@ This is a practical class-project risk table, not a formal PROBAST+AI rating.
 | Domain | Current concern | Current risk | Required next action |
 |---|---|---|---|
 | Participants | Cohort is narrow by design: adult men ages 18-64 with non-traumatic abdominal pain. | Medium | Report cohort flow, weighted counts, and subgroup availability before any generalization. |
-| Predictors | `e-dispo-v4.0` uses exact age, severe pain status, fever/temperature proxy, vomiting, and tachycardia burden; other worksheet inputs remain excluded. | High | Keep excluded predictors separate or define defensible proxies before fitting them. |
+| Predictors | `e-dispo-v4.1` uses exact age, severe pain status, fever/temperature proxy, vomiting, tachycardia burden, and PAS-5 `high_acuity_proxy`; the PAS-5 term is NHAMCS `IMMEDR` surrogate-derived, not direct patient-answer validation. | High | Keep excluded predictors separate and preserve surrogate labeling for PAS-5. |
 | Outcome | Endpoint recoding is explicit but depends on correct flag interpretation. | Medium | Reviewer must verify 2022 NHAMCS variable names and code meanings against the codebook. |
 | Analysis | Reduced fit is generated but not survey-design complete. | High | Add design-aware variance, missingness tables, intervals, and calibration plots. |
 | Performance | Apparent and lightweight bootstrap summaries are available. | Medium/high | Add stronger internal validation and, if possible, external validation. |

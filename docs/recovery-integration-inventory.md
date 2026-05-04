@@ -33,12 +33,12 @@ The working app is now `e-dispo-prototype`.
 
 ## Active Model State
 
-The default active model is `e-dispo-v4.0`.
+The default active model is `e-dispo-v4.1-pas5-high-acuity-surrogate`.
 
 Formula:
 
 ```text
-admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden
+admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden + high_acuity_proxy
 ```
 
 Pain handling:
@@ -48,19 +48,21 @@ Pain handling:
 - Missing pain blocks the empirical estimate.
 - Missing heart rate blocks the empirical estimate.
 - The model does not claim a monotonic pain dose-response.
+- PAS-5 A1/A2 activates `high_acuity_proxy`; PAS-5 A3/A4/A5 are reference.
+- The PAS-5 coefficient is bridged through NHAMCS `IMMEDR` surrogate evidence because direct PAS-5 patient answers are not observed.
 
 ## Uncertainty Asset State
 
-The app-bundled coefficient draw CSV now uses the v4 compact schema:
+The app-bundled coefficient draw CSV now uses the v4.1 PAS-5 schema:
 
 ```text
-draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed
+draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,high_acuity_proxy,seed
 ```
 
 It is generated from the reviewed source artifact:
 
 ```text
-outputs/nhamcs_pooled/e_dispo_v4_pain_severe_draws.csv
+outputs/nhamcs_pooled/pas5_acuity_draws_app.csv
 ```
 
 The generated app asset is:
@@ -87,5 +89,5 @@ Remaining `pooled_empirical_v2`, `pain_bin3`, `flexible pain`, and `nonmonotonic
 - Browser check: Use Model flow shows v4/severe-vs-non-severe copy.
 - Browser check: default model run completes and exposes Run name / Save run controls.
 - Browser check: missing HR blocks output with v4 wording.
-- Browser check: Technical Docs show `e-dispo-v4.0` and the `pain_severe` formula.
+- Browser check: Technical Docs show `e-dispo-v4.1-pas5-high-acuity-surrogate` and the `high_acuity_proxy` formula term.
 - Browser check: hidden E-Dispatch game opens after repeated `PROTOTYPE` clicks and retains the dashboard-style modal.

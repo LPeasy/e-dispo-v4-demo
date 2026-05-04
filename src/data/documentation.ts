@@ -71,7 +71,7 @@ export const overviewEvidence = [
   {
     label: "User-facing purpose",
     value:
-      "A structured educational demo for the e-dispo-v4.0 model workflow, not a clinical product.",
+      "A structured educational demo for the e-dispo-v4.1 PAS-5 surrogate model workflow, not a clinical product.",
   },
   {
     label: "Evaluator-facing purpose",
@@ -91,7 +91,7 @@ export const overviewEvidence = [
   {
     label: "Validation baseline",
     value:
-      "The active app uses the e-dispo-v4.0 reduced pooled NHAMCS 2018-2022 empirical model for educational use only.",
+      "The active app uses the e-dispo-v4.1 reduced pooled NHAMCS 2018-2022 empirical model with PAS-5 bridged through IMMEDR surrogate evidence for educational use only.",
   },
 ]
 
@@ -122,17 +122,17 @@ export const modelCardRows = [
   {
     label: "Predictors",
     value:
-      "Exact age, severe-vs-non-severe pain status, fever or temperature proxy, vomiting, and tachycardia_burden from observed HR.",
+      "Exact age, severe-vs-non-severe pain status, fever or temperature proxy, vomiting, tachycardia_burden from observed HR, and PAS-5 high_acuity_proxy.",
   },
   {
     label: "Predictive power",
     value:
-      "Moderate apparent discrimination: AUROC 0.713, Brier 0.098, with severe-only pain preserving the flexible-pain discrimination on the same complete-case cohort.",
+      "Moderate apparent discrimination in the PAS-5/IMMEDR complete-case screen: AUROC 0.759, Brier 0.091, with mean leave-one-year-out AUROC gain +0.0195 over the same-subset base refit.",
   },
   {
     label: "Usability boundary",
     value:
-      "The empirical estimate uses a reduced input set; excluded prototype controls and PAS-5 do not change P(admit) in e-dispo-v4.0.",
+      "PAS-5 is active only through high_acuity_proxy: A1/A2 activate the term; A3/A4/A5 are reference. The coefficient is IMMEDR-surrogate-derived, not direct patient self-acuity validation.",
   },
   {
     label: "Model form",
@@ -222,7 +222,14 @@ export const predictorSupportRows = [
   {
     variable: "Observed HR",
     nhamcs: "`PULSE` transformed as tachycardia_burden = max(HR - 100, 0) / 10; missing HR is not normal.",
-    support: "Direct observed vital sign; included in e-dispo-v4.0 reduced fit",
+    support: "Direct observed vital sign; included in e-dispo-v4.1 reduced fit",
+  },
+  {
+    variable: "PAS-5",
+    nhamcs:
+      "Direct patient PAS-5 answers are not observed. A1/A2 map to high_acuity_proxy using NHAMCS IMMEDR as a clinician-acuity surrogate.",
+    support:
+      "Dataset-derived surrogate; included in e-dispo-v4.1 only as high_acuity_proxy",
   },
 ]
 
@@ -254,10 +261,10 @@ export const probastRiskRows = [
   {
     domain: "Analysis",
     concern:
-      "The active reduced NHAMCS model does not use the full prototype input set or PAS-5.",
+      "The active reduced NHAMCS model uses PAS-5 only through an IMMEDR-derived high_acuity_proxy surrogate and does not use the full prototype input set.",
     risk: "High",
     mitigation:
-      "Display excluded inputs separately and keep PAS-5 explanatory until the IMMEDR surrogate evidence gate passes.",
+      "Label high_acuity_proxy as surrogate-derived and keep excluded inputs separate from active predictors.",
   },
   {
     domain: "Applicability",
@@ -307,7 +314,7 @@ export const tripodChecklistRows = [
     item: "Performance",
     status: "Reported for educational activation",
     evidence:
-      "Pooled empirical report includes AUROC 0.713, Brier 0.098, grouped calibration, fixed-prediction apparent intervals, and bootstrap-refit internal optimism correction, but no external-validation or clinical-validity claim is made.",
+      "Pooled PAS-5/IMMEDR report includes AUROC 0.759, Brier 0.091, calibration, decile calibration, deterministic coefficient draws, and leave-one-year-out checks, but no external-validation or clinical-validity claim is made.",
   },
   {
     item: "Limitations",
@@ -353,9 +360,9 @@ export const qaEvidenceRows = [
       "Unit tests validate the pooled app export and reject missing or invalid empirical artifacts.",
   },
   {
-    check: "PAS-5 isolation",
+    check: "PAS-5 high-acuity proxy",
     evidence:
-      "Unit tests verify PAS-5 scoring, guardrails, grouping, missing-answer handling, and no effect on empirical P(admit) while e-dispo-v4.0 is active.",
+      "Unit tests verify PAS-5 scoring, guardrails, grouping, missing-answer handling, active v4.1 A1/A2 high_acuity_proxy behavior, and archived v4.0 no-effect behavior.",
   },
   {
     check: "Predictive power and usability review",
@@ -372,7 +379,7 @@ export const demoBoundaryCopy = [
   "Educational statistical model only.",
   "This model does not advise whether to seek emergency care.",
   "No diagnosis, triage, treatment, or discharge-planning recommendation is made.",
-  "The active e-dispo-v4.0 estimate uses pooled NHAMCS 2018-2022 export values.",
+  "The active e-dispo-v4.1 estimate uses pooled NHAMCS 2018-2022 export values and PAS-5 high_acuity_proxy bridged through IMMEDR surrogate evidence.",
 ]
 
 export const prohibitedClinicalClaims = [

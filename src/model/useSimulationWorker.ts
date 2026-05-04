@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { MutableRefObject } from "react"
+import { GENERAL_E_DISPO_PUBLIC_MODEL_ID } from "@/data/generalEDispoModel"
 import { modelMetadata } from "./modelParameters"
 import {
   inputHashForSimulation,
   isCurrentSimulationResponse,
 } from "./simulationProtocol"
 import type { SimulationResponse } from "./simulationProtocol"
-import type { ModelInputs, SimulationResult } from "./types"
+import type {
+  GeneralModelInputs,
+  ModelInputs,
+  RunnableModelId,
+  SimulationResult,
+} from "./types"
 
 export const simulationWorkerTimeoutMs = 60_000
 export const simulationFailureMessage =
@@ -64,8 +70,12 @@ export function useSimulationWorker(
   enabled: boolean,
   age = 42,
   heartRateBpm: number | null = 88,
-  sampleCount = modelMetadata.sampleCount
+  sampleCount = modelMetadata.sampleCount,
+  modelId: RunnableModelId = "e-dispo-v4.1-pas5-high-acuity-surrogate",
+  generalInputs?: GeneralModelInputs
 ): SimulationWorkerState {
+  const simulationSeed =
+    modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID ? 20260429 : modelMetadata.seed
   const [state, setState] = useState<SimulationWorkerState>(initialState)
   const workerRef = useRef<Worker | null>(null)
   const requestIdRef = useRef(0)
@@ -75,13 +85,23 @@ export function useSimulationWorker(
   const inputHash = useMemo(
     () =>
       inputHashForSimulation({
+        modelId,
         inputs,
+        generalInputs,
         age,
         heartRateBpm,
         sampleCount,
-        seed: modelMetadata.seed,
+        seed: simulationSeed,
       }),
-    [age, heartRateBpm, inputs, sampleCount]
+    [
+      age,
+      generalInputs,
+      heartRateBpm,
+      inputs,
+      modelId,
+      sampleCount,
+      simulationSeed,
+    ]
   )
 
   useEffect(() => {
@@ -179,18 +199,30 @@ export function useSimulationWorker(
 
     workerRef.current.postMessage({
       requestId,
+      modelId,
       inputs,
+      generalInputs,
       age,
       heartRateBpm,
       sampleCount,
-      seed: modelMetadata.seed,
+      seed: simulationSeed,
     })
 
     return () => {
       clearTimeoutRef(watchdogTimeoutRef)
       clearTimeoutRef(completionTimeoutRef)
     }
-  }, [age, enabled, heartRateBpm, inputHash, inputs, sampleCount])
+  }, [
+    age,
+    enabled,
+    generalInputs,
+    heartRateBpm,
+    inputHash,
+    inputs,
+    modelId,
+    sampleCount,
+    simulationSeed,
+  ])
 
   useEffect(() => {
     return () => {

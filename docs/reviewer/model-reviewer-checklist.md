@@ -2,7 +2,7 @@
 
 Reviewer name: ______________________________  
 Review date: ______________________________  
-Version reviewed: e-dispo-v4.0
+Version reviewed: e-dispo-v4.1-pas5-high-acuity-surrogate
 
 ## How To Use This Checklist
 
@@ -41,7 +41,7 @@ Add comments wherever possible. Specific feedback is more useful than general ap
 
 | Item | Pass | Needs revision | Not sure | Comments |
 |---|---:|---:|---:|---|
-| The seven model inputs are easy to understand. | [ ] | [ ] | [ ] | |
+| The active model inputs, including the five PAS-5 patient-perceived acuity questions, are easy to understand. | [ ] | [ ] | [ ] | |
 | The model explains why it uses broad symptom categories rather than diagnosis. | [ ] | [ ] | [ ] | |
 | The logistic regression equation is technically correct and understandable. | [ ] | [ ] | [ ] | |
 | The report explains that active coefficients are dataset-derived for educational use only, not clinical estimates. | [ ] | [ ] | [ ] | |
@@ -55,7 +55,8 @@ Add comments wherever possible. Specific feedback is more useful than general ap
 | The report identifies NHAMCS, NEDS, and MIMIC-IV-ED as possible data sources. | [ ] | [ ] | [ ] | |
 | The report explains why NHAMCS is useful for the class project. | [ ] | [ ] | [ ] | |
 | The report explains that not all symptom predictors are directly available in public datasets. | [ ] | [ ] | [ ] | |
-| The app identifies `e-dispo-v4.0` NHAMCS-derived coefficients as active only for educational display. | [ ] | [ ] | [ ] | |
+| The app identifies `e-dispo-v4.1-pas5-high-acuity-surrogate` NHAMCS-derived coefficients as active only for educational display. | [ ] | [ ] | [ ] | |
+| PAS-5 is labeled as `high_acuity_proxy` derived through NHAMCS `IMMEDR` surrogate evidence, not direct patient self-assessment validation. | [ ] | [ ] | [ ] | |
 | The future empirical artifact requirements are clear. | [ ] | [ ] | [ ] | |
 
 ## E. App And Documentation Review

@@ -2,15 +2,15 @@
 
 Date: 2026-05-04
 
-Active app model remains: `e-dispo-v4.0`
+Active app model: `e-dispo-v4.1-pas5-high-acuity-surrogate`
 
 Parallel model ID: `general-E-Dispo-model-v1`
 
-This note documents a separate all-sex/all-age NHAMCS non-trauma educational/statistical model artifact. It is not the active GitHub Pages model, not a replacement for the adult-male abdominal-pain `e-dispo-v4.0` model, not clinical decision support, not external validation, and not transportability evidence.
+This note documents a separate all-sex/all-age NHAMCS non-trauma educational/statistical model artifact. It is not the active GitHub Pages model, not a replacement for the adult-male abdominal-pain `e-dispo-v4.1-pas5-high-acuity-surrogate` model, not clinical decision support, not external validation, and not transportability evidence.
 
 ## Model Boundary
 
-`e-dispo-v4.0` remains the active educational app model for adult men ages 18-64 with non-traumatic abdominal pain:
+`e-dispo-v4.1-pas5-high-acuity-surrogate` is the active educational app model for adult men ages 18-64 with non-traumatic abdominal pain:
 
 ```text
 admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden
@@ -78,7 +78,24 @@ The code-list map is versioned in `config/code_lists/nhamcs_general_e_dispo_mode
 
 The primary formula intentionally excludes pain, vomiting, nausea, hematemesis, payer, sex, race/ethnicity, region, MSA, imaging, medication, length-of-visit, wait-time, treatment, diagnosis, and disposition-derived fields. Payer and demographics appear only in subgroup/fairness artifacts.
 
-The 2026-05-04 sensitivity pass also fits `general-E-Dispo-model-v1-plus-sex`, which adds `sex` as a categorical main effect only. That sensitivity model is not the primary general model. It tests whether sex improves calibration/performance enough to justify further review.
+The 2026-05-04 sensitivity pass also fits `general-E-Dispo-model-v1-plus-sex`, which adds `sex` as a categorical main effect only. That sensitivity model is now exposed as the separate public runnable demo `general-E-Dispo-model-v1-sex-adjusted`. It is not the active adult-male abdominal-pain model and does not replace the primary clean `general-E-Dispo-model-v1` reviewer artifact.
+
+## Public Runnable Demo
+
+The active app workstream now builds two static site variants from `e-dispo-prototype/`:
+
+| Build command | Output directory | Public model |
+|---|---|---|
+| `npm run build:v4` | `dist/e-dispo-v4-demo/` | current E-Dispo abdominal-pain app behavior |
+| `npm run build:general` | `dist/general-e-dispo-demo/` | `general-E-Dispo-model-v1-sex-adjusted` |
+| `npm run build:all-sites` | both directories | both public demos |
+
+The general public demo uses the `general-E-Dispo-model-v1-plus-sex` coefficients and covariance artifact, generated into a browser coefficient-draw asset at `src/data/general-e-dispo-coefficient-draws.csv`. The public model ID is deliberately different from the reviewer source artifact ID:
+
+- Source statistical artifact: `general-E-Dispo-model-v1-plus-sex`
+- Runnable public model: `general-E-Dispo-model-v1-sex-adjusted`
+
+This naming keeps the reviewer evidence trail separate from the public runnable site. It also prevents the broader general model from being confused with the adult-male abdominal-pain `e-dispo-v4.1-pas5-high-acuity-surrogate` app model.
 
 ## Outputs
 
@@ -120,7 +137,7 @@ The 2026-05-04 sensitivity pass also fits `general-E-Dispo-model-v1-plus-sex`, w
 | Admit-vs-home sex-code counts | sex=1: 28,185; sex=2: 21,885 |
 | Rows also satisfying original adult-male age 18-64 flag | 17,703 |
 
-The active `e-dispo-v4.0` counts are unchanged: strict binary `3,805`, admission events `459`, complete-case fit `2,674 / 307`.
+The active v4.1 full strict-binary counts remain `3,805` with `459` admission events; the PAS-5/IMMEDR complete-case fit uses `2,245 / 254`.
 
 ## Apparent Performance
 

@@ -1,6 +1,6 @@
 # Verification Summary
 
-Date: 2026-05-01
+Date: 2026-05-04
 
 ## App Verification
 
@@ -8,10 +8,11 @@ Date: 2026-05-01
 - `npm run lint`: passed.
 - `npm run build`: passed.
 - `scripts/nhamcs/nhamcs_e_dispo_v4_pain_severe_validation.R`: passed with repo-local R library.
+- `scripts/nhamcs/nhamcs_pas5_acuity_candidate_screen.R`: passed with repo-local R library.
 - NHAMCS pipeline syntax check: passed.
 - Endpoint recoding smoke check with bundled Python: passed.
 - NHAMCS validation fixture test: passed.
-- `e-dispo-v4.0` reduced pooled empirical app artifact validated under `src/data/eDispoV4Model.ts`.
+- `e-dispo-v4.1-pas5-high-acuity-surrogate` reduced pooled empirical app artifact validated under `src/data/eDispoV4Model.ts`.
 - Predictive-power and usability review added under `docs/validation/predictive-power-usability-review.md`.
 
 ## DOCX Verification
@@ -42,4 +43,4 @@ Fresh endpoint-refined screenshots are included in the package:
 
 The model remains educational/statistical only. Passing these checks means the package builds and the documented logic is internally consistent. It does not mean the model is clinically validated.
 
-The `e-dispo-v4.0` reduced pooled NHAMCS coefficients are active only for educational display. PAS-5 and other unsupported prototype inputs do not activate NHAMCS-derived risk effects in the app.
+The `e-dispo-v4.1-pas5-high-acuity-surrogate` reduced pooled NHAMCS coefficients are active only for educational display. PAS-5 A1/A2 activates `high_acuity_proxy`; this term is derived from NHAMCS `IMMEDR` as clinician-acuity surrogate evidence, not direct patient PAS-5 validation. Other unsupported prototype inputs do not activate NHAMCS-derived risk effects in the app.

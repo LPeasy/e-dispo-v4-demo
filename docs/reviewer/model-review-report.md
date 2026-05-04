@@ -1,7 +1,7 @@
-# ED Disposition Model e-dispo-v4.0 - Reviewer Report
+# ED Disposition Model e-dispo-v4.1 PAS-5 Surrogate - Reviewer Report
 
 Prepared for: Model reviewer  
-Project: ED Disposition Personal Risk Model, e-dispo-v4.0  
+Project: ED Disposition Personal Risk Model, e-dispo-v4.1-pas5-high-acuity-surrogate  
 Date: 2026-05-01
 
 ## 1. Executive Summary
@@ -110,7 +110,7 @@ Plain-English translation: the model avoids mixing apples and oranges. It only c
 
 ## 7. Model Inputs
 
-The worksheet collects seven inputs, but `e-dispo-v4.0` uses only the reduced empirical subset for P(admit):
+The worksheet collects the active reduced empirical inputs for `e-dispo-v4.1-pas5-high-acuity-surrogate` P(admit):
 
 | Input | Example categories | Why it is included |
 |---|---|---|
@@ -121,6 +121,8 @@ The worksheet collects seven inputs, but `e-dispo-v4.0` uses only the reduced em
 | Pain pattern | Constant, intermittent, unknown | Pattern may help describe symptom behavior. |
 | Vomiting | Yes, no, unknown | Associated symptom proxy. |
 | Fever | Yes, no, unknown | Associated symptom proxy. |
+| Observed HR | Numeric heart rate | Active as tachycardia burden above 100 bpm. |
+| PAS-5 | Five patient-perceived acuity questions | A1/A2 activate `high_acuity_proxy`; A3/A4/A5 are reference. |
 
 Plain-English translation: the worksheet uses broad symptom facts, not a full medical chart. The active probability model uses only the empirically supported subset.
 
@@ -137,16 +139,17 @@ P(treat_and_release) = 1 - P(admit)
 
 What that means:
 
-- Active coefficients are exact age, severe pain status, fever/temperature proxy, vomiting, and tachycardia burden.
-- Excluded worksheet inputs and PAS-5 do not change `e-dispo-v4.0` P(admit).
+- Active coefficients are exact age, severe pain status, fever/temperature proxy, vomiting, tachycardia burden, and PAS-5 `high_acuity_proxy`.
+- Broad pain region, onset/duration, pain pattern, hematemesis, direct clinician acuity, SBP, and other prototype inputs are outside the active formula.
 - The model adds the active effects together.
 - The logistic function converts the total into a probability between 0 and 1.
 - The release-home probability is calculated as the complement of admission probability, but only after the binary endpoint rules are applied.
 
 Important coefficient status:
 
-- The active app model is `e-dispo-v4.0`.
+- The active app model is `e-dispo-v4.1-pas5-high-acuity-surrogate`.
 - Active coefficients are dataset-derived from the pooled NHAMCS 2018-2022 educational cohort, with app-side schema gates.
+- PAS-5 `high_acuity_proxy` is dataset-derived surrogate evidence from NHAMCS `IMMEDR`; direct PAS-5 patient answers are not observed in NHAMCS.
 - Severe pain is active only as `pain_severe = 1[pain_bin3 == severe]`; mild and moderate are collapsed as non-severe.
 - The coefficients are not validated clinical estimates.
 
@@ -180,7 +183,7 @@ The project documents three relevant data paths:
 | NEDS | Stronger large-scale ED endpoint source. | Less open/free and weaker for symptom detail. |
 | MIMIC-IV-ED | Richer ED workflow and symptom-proxy prototyping. | Credentialed access and not nationally representative. |
 
-The app includes an offline NHAMCS pipeline plan. Raw NHAMCS data is not bundled. The active `e-dispo-v4.0` artifact requires documented cohort counts, endpoint counts, missingness handling, coefficient estimates, covariance/draw outputs, calibration metrics, predictor support notes, and limitations.
+The app includes an offline NHAMCS pipeline plan. Raw NHAMCS data is not bundled. The active `e-dispo-v4.1-pas5-high-acuity-surrogate` artifact requires documented cohort counts, endpoint counts, missingness handling, coefficient estimates, covariance/draw outputs, calibration metrics, PAS-5 surrogate notes, predictor support notes, and limitations.
 
 Plain-English translation: the project has a realistic path toward real-data support, but the current app has not yet completed that path.
 

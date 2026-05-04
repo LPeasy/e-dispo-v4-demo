@@ -39,8 +39,8 @@ export function Pas5AcuityInput({
         <div>
           <FieldLegend>Patient-perceived acuity proxy</FieldLegend>
           <FieldDescription className="mt-1">
-            Five self-report questions. In e-dispo-v4.0 this is explanatory and
-            does not affect P(admit).
+            Five self-report questions. In e-dispo-v4.1, A1/A2 activate the
+            high-acuity surrogate term; A3/A4/A5 are the reference side.
           </FieldDescription>
         </div>
         <Badge variant="outline">PAS-5</Badge>

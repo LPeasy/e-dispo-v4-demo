@@ -1,13 +1,20 @@
 import { logistic } from "./logisticModel";
 import { modelMetadata } from "./modelParameters";
 import type { PooledEmpiricalCoefficientDraw } from "@/data/pooledEmpiricalCoefficientDraws";
+import { GENERAL_E_DISPO_PUBLIC_MODEL_ID } from "@/data/generalEDispoModel";
 import type {
+  GeneralModelInputs,
   HistogramBin,
   LogisticTerm,
   ModelInputs,
+  RunnableModelId,
   SensitivityResult,
   SimulationResult,
 } from "./types";
+import {
+  activeGeneralEDispoTermsForInputs,
+  hypotensionBurdenFromSbp,
+} from "./generalEDispoPrediction";
 import {
   activePooledEmpiricalTermsForInputs,
   tachycardiaBurdenFromHeartRate,
@@ -20,6 +27,23 @@ interface SampledTerm {
   values: number[];
 }
 
+type SimulationCoefficientInputs =
+  | {
+      modelId: "e-dispo-v4.1-pas5-high-acuity-surrogate";
+      pooledInputs: PooledEmpiricalPredictionInputs;
+      generalInputs?: never;
+    }
+  | {
+      modelId: typeof GENERAL_E_DISPO_PUBLIC_MODEL_ID;
+      pooledInputs?: never;
+      generalInputs: GeneralModelInputs;
+    };
+
+type RunLatinHypercubeSimulationOptions = {
+  modelId?: RunnableModelId;
+  generalInputs?: GeneralModelInputs;
+};
+
 export function runLatinHypercubeSimulation(
   inputs: ModelInputs,
   sampleCount = modelMetadata.sampleCount,
@@ -27,7 +51,34 @@ export function runLatinHypercubeSimulation(
   age = 42,
   heartRateBpm: number | null = 88,
   coefficientDraws: PooledEmpiricalCoefficientDraw[] = [],
+  options: RunLatinHypercubeSimulationOptions = {},
 ): SimulationResult {
+  if (options.modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID) {
+    if (!options.generalInputs) {
+      throw new Error("General model inputs are required for the general E-Dispo simulation.");
+    }
+
+    const activeTerms = activeGeneralEDispoTermsForInputs(options.generalInputs);
+    if (coefficientDraws.length > 0) {
+      return runJointCoefficientDrawSimulation(
+        activeTerms,
+        {
+          modelId: GENERAL_E_DISPO_PUBLIC_MODEL_ID,
+          generalInputs: options.generalInputs,
+        },
+        sampleCount,
+        seed,
+        coefficientDraws,
+      );
+    }
+
+    return runIndependentNormalApproximationSimulation(
+      activeTerms,
+      sampleCount,
+      seed,
+    );
+  }
+
   const pooledInputs = toPooledEmpiricalPredictionInputs(
     inputs,
     age,
@@ -38,7 +89,10 @@ export function runLatinHypercubeSimulation(
   if (coefficientDraws.length > 0) {
     return runJointCoefficientDrawSimulation(
       activeTerms,
-      pooledInputs,
+      {
+        modelId: "e-dispo-v4.1-pas5-high-acuity-surrogate",
+        pooledInputs,
+      },
       sampleCount,
       seed,
       coefficientDraws,
@@ -54,7 +108,7 @@ export function runLatinHypercubeSimulation(
 
 function runJointCoefficientDrawSimulation(
   activeTerms: LogisticTerm[],
-  inputs: PooledEmpiricalPredictionInputs,
+  inputs: SimulationCoefficientInputs,
   sampleCount: number,
   seed: number,
   coefficientDraws: PooledEmpiricalCoefficientDraw[],
@@ -140,20 +194,45 @@ function sampleCoefficientDraws(
 function coefficientContributionForTerm(
   term: LogisticTerm,
   draw: PooledEmpiricalCoefficientDraw,
-  inputs: PooledEmpiricalPredictionInputs,
+  inputs: SimulationCoefficientInputs,
 ): number {
   switch (term.key) {
     case "intercept":
       return draw.coefficients.intercept;
     case "age_centered":
-      return draw.coefficients.age_centered * (inputs.age - 42);
+      if (inputs.modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID) {
+        throw new Error("Pooled model inputs are required for age_centered.");
+      }
+      return draw.coefficients.age_centered * (inputs.pooledInputs.age - 42);
+    case "age_centered_40":
+      if (inputs.modelId !== GENERAL_E_DISPO_PUBLIC_MODEL_ID) {
+        throw new Error("General model inputs are required for age_centered_40.");
+      }
+      return (
+        requiredDrawCoefficient(draw, "age_centered_40", "age_centered_40") *
+        (inputs.generalInputs.age - 40)
+      );
     case "tachycardia_burden":
-      if (inputs.heartRateBpm === null) {
+      if (heartRateBpmForCoefficientInputs(inputs) === null) {
         throw new Error("Observed heart rate is required for coefficient draws.");
       }
       return (
         draw.coefficients.tachycardia_burden *
-        tachycardiaBurdenFromHeartRate(inputs.heartRateBpm)
+        tachycardiaBurdenFromHeartRate(
+          heartRateBpmForCoefficientInputs(inputs) as number,
+        )
+      );
+    case "hypotension_burden":
+      if (inputs.modelId !== GENERAL_E_DISPO_PUBLIC_MODEL_ID) {
+        throw new Error("General model inputs are required for hypotension_burden.");
+      }
+      return (
+        requiredDrawCoefficient(
+          draw,
+          "hypotension_burden",
+          "hypotension_burden",
+        ) *
+        hypotensionBurdenFromSbp(inputs.generalInputs.systolicBloodPressure as number)
       );
     case "pain_severe":
       return draw.coefficients.pain_severe;
@@ -167,6 +246,20 @@ function coefficientContributionForTerm(
         "high_acuity_proxy",
         "high_acuity_proxy",
       );
+    case "sex_2":
+    case "acuity_code_blank":
+    case "acuity_code_unknown":
+    case "acuity_code_no_triage_esa_conducts_triage":
+    case "acuity_code_immediate":
+    case "acuity_code_emergent":
+    case "acuity_code_semi_urgent":
+    case "acuity_code_nonurgent":
+    case "acuity_code_no_nursing_triage_esa":
+    case "arrival_transfer_context_blank":
+    case "arrival_transfer_context_unknown":
+    case "arrival_transfer_context_not_applicable":
+    case "arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care":
+      return requiredDrawCoefficient(draw, term.key, term.key);
     case "fever_or_temp.unknown_not_activated":
     case "vomiting_present.unknown_not_activated":
       return 0;
@@ -177,7 +270,7 @@ function coefficientContributionForTerm(
 
 function requiredDrawCoefficient(
   draw: PooledEmpiricalCoefficientDraw,
-  key: "high_acuity_proxy",
+  key: string,
   label: string,
 ): number {
   const value = draw.coefficients[key];
@@ -185,6 +278,16 @@ function requiredDrawCoefficient(
     throw new Error(`Missing coefficient draw mapping for active term: ${label}`);
   }
   return value;
+}
+
+function heartRateBpmForCoefficientInputs(
+  inputs: SimulationCoefficientInputs,
+): number | null {
+  if (inputs.modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID) {
+    return inputs.generalInputs.heartRateBpm;
+  }
+
+  return inputs.pooledInputs.heartRateBpm;
 }
 
 function sampleTerm(

@@ -2,7 +2,7 @@
 
 ## What Is In This Package
 
-This package contains a portable review copy of the `e-dispo-v4.0` ED Disposition Model class project.
+This package contains a portable review copy of the `e-dispo-v4.1-pas5-high-acuity-surrogate` ED Disposition Model class project.
 
 Main files:
 

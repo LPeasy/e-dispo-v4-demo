@@ -8,6 +8,8 @@ The app does not diagnose disease, advise triage, recommend treatment, or tell a
 
 The primary app flow is intentionally lean. Supporting validation, data-readiness, reporting, bias, QA, and source material live in the in-app Documentation section for instructors and reviewers.
 
+The repo now builds a separate `general-E-Dispo-model-v1-sex-adjusted` public demo for all-sex/all-age non-trauma NHAMCS records. That general demo is parallel to this adult-male abdominal-pain model, not a replacement, and does not establish external validation, transportability, or clinical-use evidence.
+
 ## Population
 
 - Adult men ages 18-64
@@ -31,20 +33,21 @@ Sensitivity A treats observation -> discharged as eventual home release. Sensiti
 - Fever or objective temperature proxy
 - Vomiting
 - Observed HR as `tachycardia_burden = max(HR - 100, 0) / 10`
+- PAS-5 `high_acuity_proxy`, where PAS-5 A1/A2 = 1 and A3/A4/A5 = 0
 
 ## Analysis
 
-The app uses the versioned reduced pooled NHAMCS 2018-2022 empirical logistic-regression export `e-dispo-v4.0`. The app computes `P(admit)` as shorthand for same-hospital hospitalization/admission and derives `P(treat_and_release) = 1 - P(admit)` only after the endpoint-refined primary binary cohort restriction.
+The app uses the versioned reduced pooled NHAMCS 2018-2022 empirical logistic-regression export `e-dispo-v4.1-pas5-high-acuity-surrogate`. The app computes `P(admit)` as shorthand for same-hospital hospitalization/admission and derives `P(treat_and_release) = 1 - P(admit)` only after the endpoint-refined primary binary cohort restriction.
 
 Latin Hypercube Sampling propagates exported coefficient uncertainty through the reduced empirical logistic model. The app reports median, p10-p90, p2.5-p97.5, histogram, and sensitivity ranking.
 
 ## Predictive Power And Usability
 
-The active `e-dispo-v4.0` model has moderate discrimination, with exported AUROC 0.713. Its exported Brier score is 0.0976, compared with an approximate prevalence-only Brier score of 0.104 in the complete-case cohort. That is a small absolute improvement of about 0.006, so the model is useful for educational risk-model demonstration but not for individual-level clinical action.
+The active `e-dispo-v4.1-pas5-high-acuity-surrogate` model has moderate discrimination in the PAS-5/IMMEDR complete-case screen, with exported AUROC 0.759 and Brier score 0.0913. On the same complete-case subset, the base refit without the PAS-5 high-acuity proxy had AUROC 0.736 and Brier 0.0938. Mean leave-one-year-out AUROC improved by 0.0195 and mean leave-one-year-out Brier improved by 0.00225, although the 2018 heldout year worsened.
 
-The exported calibration check is internally coherent: observed prevalence and mean predicted probability both round to 11.75%, with calibration intercept near 0 and slope near 1. This is not external validation and does not establish transportability.
+The exported calibration check is internally coherent: observed prevalence and mean predicted probability both round to 11.35%, with calibration gap near 0 and slope near 1. This is not external validation and does not establish transportability.
 
-Usability is strongest when the app foregrounds the reduced empirical inputs: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, and observed HR. PAS-5 and other excluded prototype controls should remain visually and textually separated because they do not alter the `e-dispo-v4.0` empirical estimate. Missing pain and missing HR are not silently treated as reference/normal values; the `e-dispo-v4.0` estimate requires observed pain and observed HR.
+Usability is strongest when the app foregrounds the reduced empirical inputs: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, observed HR, and PAS-5 high-acuity proxy status. Missing pain and missing HR are not silently treated as reference/normal values; the `e-dispo-v4.1` estimate requires observed pain and observed HR.
 
 ## Data-Ready Path
 
@@ -52,7 +55,7 @@ NHAMCS is the primary free public empirical path for the course appendix. NEDS i
 
 Raw NHAMCS files should remain outside the static app bundle. The app shows NHAMCS-derived coefficients only through the validated static export gate in `src/data/empiricalArtifacts.ts`.
 
-The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, severe-vs-non-severe pain status, fever or temperature proxy, ordinary vomiting, and observed HR transformed into tachycardia burden. Broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, acuity, SBP, and PAS-5 are not active `e-dispo-v4.0` risk-model inputs.
+The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, severe-vs-non-severe pain status, fever or temperature proxy, ordinary vomiting, observed HR transformed into tachycardia burden, and PAS-5 high-acuity proxy status. Broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, direct clinician acuity, and SBP remain outside the active app formula.
 
 ## Limitations
 
@@ -60,11 +63,11 @@ The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, sever
 - Endpoint support is stronger than exact symptom-predictor support in public datasets.
 - Some symptom predictors require proxies.
 - NHAMCS has one `PULSE` value, so tachycardia duration cannot be evaluated in this source.
-- PAS-5 is a `patient_perceived_acuity_proxy`; it is explanatory only in `e-dispo-v4.0` and not dataset-derived as direct patient self-assessment.
+- PAS-5 is active only through `high_acuity_proxy`; it is derived from NHAMCS `IMMEDR` as clinician-acuity surrogate evidence, not direct patient self-acuity validation.
 - Unknown fever or vomiting does not activate the empirical yes coefficient and should not be interpreted as confirmed absence.
-- Missing HR withholds the `e-dispo-v4.0` empirical estimate because missing HR is not normal HR.
+- Missing HR withholds the `e-dispo-v4.1` empirical estimate because missing HR is not normal HR.
 - Severe pain is a binary signal in the active model; it must not be described as a monotonic mild/moderate/severe dose response.
 - Nausea-alone was screened as a future NHAMCS candidate but did not pass the prespecified uncertainty gate; it remains excluded from the active model.
 - The reduced NHAMCS export includes calibration and discrimination fields for educational review, but no clinical-validity claim is made.
 - Any future empirical model must document cohort construction, endpoint recoding, missing-data handling, calibration, discrimination, and applicability.
-- Future PAS-5 risk-model use requires the prespecified IMMEDR surrogate screen to pass cell-count, coefficient-direction, leave-one-year-out, calibration, and artifact gates. NHAMCS does not contain direct PAS-5 answers, so any IMMEDR result remains surrogate evidence.
+- The PAS-5 surrogate coefficient does not validate PAS-5 as medical advice, direct patient self-assessment accuracy, or a real-world patient-care workflow.

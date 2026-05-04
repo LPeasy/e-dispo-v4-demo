@@ -47,6 +47,9 @@ async function main() {
   const coefficientFiles = assetFiles.filter((file) =>
     /^pooled-empirical-coefficient-draws-.*\.csv$/.test(path.basename(file))
   )
+  const generalCoefficientFiles = assetFiles.filter((file) =>
+    /^general-e-dispo-coefficient-draws-.*\.csv$/.test(path.basename(file))
+  )
   const workerFiles = assetFiles.filter((file) =>
     /^simulationWorker-.*\.js$/.test(path.basename(file))
   )
@@ -57,6 +60,10 @@ async function main() {
   assert(
     coefficientFiles.length === 1,
     `Expected one hashed coefficient draw CSV, found ${coefficientFiles.length}.`
+  )
+  assert(
+    generalCoefficientFiles.length <= 1,
+    `Expected no more than one hashed general coefficient draw CSV, found ${generalCoefficientFiles.length}.`
   )
   assert(
     workerFiles.length === 1,
@@ -77,14 +84,16 @@ async function main() {
 
   if (coefficientFiles.length === 1) {
     const csvText = await readText(coefficientFiles[0])
+    const normalizedCsvText = csvText?.replaceAll('"', "")
     const firstDataRow = csvText?.split(/\r?\n/).find((line, index) => {
       return index > 0 && line.trim().length > 0
     })
 
     assert(
-      csvText?.startsWith(
-        "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed"
-      ) === true,
+      [
+        "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed",
+        "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,high_acuity_proxy,seed",
+      ].some((header) => normalizedCsvText?.startsWith(header)) === true,
       "coefficient CSV header is missing or malformed."
     )
 
@@ -97,6 +106,17 @@ async function main() {
         )
       }
     }
+  }
+
+  if (generalCoefficientFiles.length === 1) {
+    const csvText = await readText(generalCoefficientFiles[0])
+    const normalizedCsvText = csvText?.replaceAll('"', "")
+    assert(
+      normalizedCsvText?.startsWith(
+        "draw_id,intercept,age_centered_40,sex_2,acuity_code_blank,acuity_code_unknown,acuity_code_no_triage_esa_conducts_triage,acuity_code_immediate,acuity_code_emergent,acuity_code_semi_urgent,acuity_code_nonurgent,acuity_code_no_nursing_triage_esa,arrival_transfer_context_blank,arrival_transfer_context_unknown,arrival_transfer_context_not_applicable,arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care,fever_or_temp,tachycardia_burden,hypotension_burden,seed"
+      ) === true,
+      "general coefficient CSV header is missing or malformed."
+    )
   }
 
   await checkNestedHttpServing(distFiles)

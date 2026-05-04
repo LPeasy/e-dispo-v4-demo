@@ -2,11 +2,15 @@
 
 Date: 2026-05-03
 
-Active model: `e-dispo-v4.0`
+Active model: `e-dispo-v4.1-pas5-high-acuity-surrogate`
+
+Parallel public demo model: `general-E-Dispo-model-v1-sex-adjusted`
 
 This handoff is for model validation review of the current educational ED disposition model for adult men ages 18-64 already in the emergency department with non-traumatic abdominal pain. The model estimates the strict operational endpoint of same-hospital admission versus routine ED discharge home after exclusions.
 
 This model is educational/statistical only. It is not clinical decision support, diagnosis, triage, treatment advice, discharge guidance, medical advice, or a medical device.
+
+The app workstream now has two separate static builds: `npm run build:v4` writes `dist/e-dispo-v4-demo/`, while `npm run build:general` writes `dist/general-e-dispo-demo/`. The general demo is built from the plus-sex sensitivity artifact and remains separate from the adult-male abdominal-pain app model. It does not establish external validation, transportability, or clinical-use evidence.
 
 ## Evidence Map
 
@@ -25,6 +29,9 @@ Primary repo evidence:
 - `docs/validation/probast-ai-risk-table.md`
 - `docs/validation/deficiency-review-next-phase.md`
 - `src/data/eDispoV4Model.ts`
+- `src/data/generalEDispoModel.ts`
+- `src/data/general-e-dispo-coefficient-draws.csv`
+- `src/model/generalEDispoPrediction.ts`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_coefficients.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_covariance.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_draws.csv`
@@ -99,7 +106,7 @@ The intended population is narrow: adult men ages 18-64 who are already in the E
 
 ### Technical/statistical detail
 
-The active model is `e-dispo-v4.0`, using the endpoint `same-hospital admission vs routine home discharge after exclusions`. The model card and validation dossier both identify the active fit as a reduced pooled NHAMCS 2018-2022 empirical export for educational use.
+The active model is `e-dispo-v4.1-pas5-high-acuity-surrogate`, using the endpoint `same-hospital admission vs routine home discharge after exclusions`. The model card and validation dossier both identify the active fit as a reduced pooled NHAMCS 2018-2022 empirical export for educational use with PAS-5 bridged through NHAMCS `IMMEDR` surrogate evidence.
 
 The active predictor set is exact age, severe-vs-non-severe pain, fever/temperature proxy, vomiting, and tachycardia burden from observed heart rate. Excluded prototype inputs do not affect empirical `P(admit)`.
 
@@ -177,7 +184,7 @@ Reviewer action items:
 
 The current active model is based on pooled NHAMCS ED records from 2018-2022. The raw NHAMCS data are not bundled in the app or committed to the repo. The repo contains derived outputs, validation reports, and scripts that document how the cohort was built.
 
-The reviewer should distinguish the current pooled `e-dispo-v4.0` model from the older NHAMCS 2022 baseline. The older baseline is still useful as an audit artifact, but it is not the current active model.
+The reviewer should distinguish the current pooled `e-dispo-v4.1-pas5-high-acuity-surrogate` model from the older NHAMCS 2022 baseline and the archived v4.0 severe-pain model. Those older baselines are still useful as audit artifacts, but they are not the current active model.
 
 ### Technical/statistical detail
 
@@ -185,8 +192,8 @@ Current active pooled model snapshot from the performance report:
 
 | Quantity | Value |
 |---|---:|
-| Complete-case unweighted N for `e-dispo-v4.0` fit | 2,674 |
-| Admission events in complete-case fit | 307 |
+| PAS-5/IMMEDR complete-case unweighted N for `e-dispo-v4.1` fit | 2,245 |
+| Admission events in complete-case fit | 254 |
 | Full strict binary pooled NHAMCS N before complete-case restriction | 3,805 |
 | Full strict binary pooled NHAMCS admission events before complete-case restriction | 459 |
 | Weighted admission prevalence in strict binary pooled NHAMCS artifact | 0.12448514982051484 |
@@ -243,7 +250,7 @@ Pain is not treated as a smooth severity ladder. The model only asks whether pai
 
 ### Technical/statistical detail
 
-Active `e-dispo-v4.0` predictors:
+Active `e-dispo-v4.1` predictors:
 
 | Predictor | Transformation | Notes |
 |---|---|---|
@@ -252,8 +259,9 @@ Active `e-dispo-v4.0` predictors:
 | Fever/temp | `fever_or_temp` | Fever or objective temperature proxy. Unknown does not activate yes coefficient. |
 | Vomiting | `vomiting_present` | Symptom/proxy-supported active predictor. Unknown does not activate yes coefficient. |
 | Heart rate | `tachycardia_burden = max(HR - 100, 0) / 10` | Observed HR required; missing HR is not normal HR. |
+| PAS-5 | `high_acuity_proxy = 1[PAS-5 in A1/A2]` | A3/A4/A5 are reference; coefficient is NHAMCS `IMMEDR` surrogate-derived. |
 
-Excluded or non-active prototype concepts include broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, acuity, SBP, AAP-3, and tachycardia duration. AAP-3 is explanatory only and remains `prototype_acuity_proxy`.
+Excluded or non-active prototype concepts include broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, direct clinician acuity, SBP, and tachycardia duration.
 
 Pain representation decision:
 
@@ -341,16 +349,16 @@ The calibration numbers are internally coherent for the exported pooled dataset,
 
 ### Technical/statistical detail
 
-Active `e-dispo-v4.0` apparent performance:
+Active `e-dispo-v4.1` apparent performance:
 
 | Metric | Value |
 |---|---:|
-| AUROC | 0.7130954172 |
-| Brier score | 0.0976402591 |
-| Observed prevalence | 0.1175465174 |
-| Mean predicted probability | 0.1175465174 |
-| Calibration intercept | 0.0000000072 |
-| Calibration slope | 1.0000000000 |
+| AUROC | 0.7590778232 |
+| Brier score | 0.0913118200 |
+| Observed prevalence | 0.1135207991 |
+| Mean predicted probability | 0.1135207991 |
+| Calibration gap | 0.000000000016 |
+| Calibration slope | 1.0000000002 |
 
 Reviewer-facing calibration/performance artifact pass added on 2026-05-03:
 
@@ -380,7 +388,7 @@ The 1,000-replicate AUROC/Brier intervals describe design-aware apparent metric 
 
 The full-source non-trauma candidate track is separate from the active model. It fits `e-dispo-v4.1-full-source-nontrauma-admit` on the broader all-sex/all-age non-trauma NHAMCS source cohort with the same compact predictor surface for comparability. The admit-vs-home denominator contains sex code 1 rows (28,185) and sex code 2 rows (21,885); the original adult-male age 18-64 flag is retained for review but is not used as a gate. Coefficients are labeled `survey_weighted_candidate`, not `dataset_derived`, and no app-side active model changes are made. The companion transfer screen uses `transfer` versus routine home discharge only for reporting; transfer is not combined with admission.
 
-`general-E-Dispo-model-v1` is a newer parallel clean pre-disposition general non-trauma artifact. It uses the same all-sex/all-age non-trauma denominator but replaces the compact abdominal-pain-style predictor surface with age centered at 40, NHAMCS `IMMEDR` acuity, NHAMCS `AMBTRANSFER` arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. Payer, sex, race/ethnicity, region, and MSA are subgroup/fairness fields only and are not in the fitted base formula. This track is also not active app behavior and does not broaden `e-dispo-v4.0`.
+`general-E-Dispo-model-v1` is a newer parallel clean pre-disposition general non-trauma artifact. It uses the same all-sex/all-age non-trauma denominator but replaces the compact abdominal-pain-style predictor surface with age centered at 40, NHAMCS `IMMEDR` acuity, NHAMCS `AMBTRANSFER` arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. Payer, sex, race/ethnicity, region, and MSA are subgroup/fairness fields only and are not in the fitted base formula. This track is also not active app behavior and does not broaden the adult-male abdominal-pain v4.1 app model.
 
 `general-E-Dispo-model-v1-plus-sex` is a prespecified sensitivity artifact, not a replacement. It adds sex as a categorical main effect to test residual sex calibration. The result is mixed: sex removes the apparent NHAMCS sex subgroup calibration gap, but the overall metric gain is tiny and optimism-corrected Brier is slightly worse. Current conclusion: keep the artifact, do not promote sex into the primary clean general model without later fairness review and source-specific validation.
 
@@ -439,8 +447,8 @@ Sensitivity endpoints exist for review, but they are not the active model. The c
 
 Current missingness behavior:
 
-- Observed pain is required for `e-dispo-v4.0`.
-- Observed HR is required for `e-dispo-v4.0`.
+- Observed pain is required for `e-dispo-v4.1`.
+- Observed HR is required for `e-dispo-v4.1`.
 - Missing HR is not normal HR.
 - Missing pain is not non-severe pain.
 - Unknown fever/vomiting does not activate the yes coefficient and should not be described as confirmed absence.
@@ -461,7 +469,7 @@ Current subgroup and missingness status:
 - Full subgroup interval estimation remains a gap.
 - External validation has not been performed.
 - Full-source NHAMCS endpoint-only and non-trauma screens have been performed, but they are source-scope stress tests and do not broaden the intended-use population.
-- A separate full-source non-trauma admit candidate fit and analytic/raw variable screen exist for development review only; they do not broaden active `e-dispo-v4.0`.
+- A separate full-source non-trauma admit candidate fit and analytic/raw variable screen exist for development review only; they do not broaden active `e-dispo-v4.1`.
 - `general-E-Dispo-model-v1` subgroup and missingness artifacts exist for the parallel general non-trauma model; they are internal NHAMCS reviewer artifacts only and not active app evidence.
 - `general-E-Dispo-model-v1-plus-sex` exists only as a prespecified sensitivity artifact. It is not promoted because the overall performance gain is tiny and optimism-corrected Brier is slightly worse despite better sex subgroup calibration.
 - Tachycardia duration is not feasible in NHAMCS because the source has one `PULSE` value.
@@ -596,4 +604,4 @@ Use this section during review.
 
 ## Bottom Line For Reviewer
 
-The repo supports `e-dispo-v4.0` as a bounded educational empirical model with moderate apparent predictive signal and clear limitations. It does not support clinical deployment, patient-level action, external validation, or broad generalization. The 2026-05-03 pass adds grouped calibration, design-aware apparent AUROC/Brier intervals, missingness/subgroup rows including race/ethnicity, payer, region, and MSA, 200-refit optimism-corrected internal estimates, full-source NHAMCS source-scope screens, a separate full-source non-trauma candidate model and analytic/raw variable screen, a sparse MIMIC-IV-ED blocker, and candidate-refinement blocker rows. The 2026-05-04 pass adds `general-E-Dispo-model-v1` as a parallel clean pre-disposition all-sex/all-age non-trauma model artifact with its own coefficients, covariance, grouped calibration, intervals, optimism correction, subgroup, and missingness outputs. The same pass adds `general-E-Dispo-model-v1-plus-sex` as a prespecified sensitivity artifact; it improves sex subgroup calibration but is not promoted because the overall performance gain is negligible and optimism-corrected Brier is slightly worse. The strongest remaining validation needs are adequate source-specific/external validation, subgroup interval estimation where event counts support it, and prespecified leakage-reviewed candidate-model comparison before any replacement model is considered.
+The repo supports `e-dispo-v4.1-pas5-high-acuity-surrogate` as a bounded educational empirical model with moderate apparent predictive signal and clear limitations. It does not support clinical deployment, patient-level action, external validation, or broad generalization. The 2026-05-03 pass added grouped calibration, design-aware apparent AUROC/Brier intervals, missingness/subgroup rows including race/ethnicity, payer, region, and MSA, 200-refit optimism-corrected internal estimates, full-source NHAMCS source-scope screens, a separate full-source non-trauma candidate model and analytic/raw variable screen, a sparse MIMIC-IV-ED blocker, and candidate-refinement blocker rows for the v4.0 predecessor. The 2026-05-04 pass adds PAS-5 `high_acuity_proxy` through NHAMCS `IMMEDR` surrogate evidence, plus `general-E-Dispo-model-v1` as a parallel clean pre-disposition all-sex/all-age non-trauma model artifact with its own coefficients, covariance, grouped calibration, intervals, optimism correction, subgroup, and missingness outputs. The same pass adds `general-E-Dispo-model-v1-plus-sex` as a prespecified sensitivity artifact; it improves sex subgroup calibration but is not promoted because the overall performance gain is negligible and optimism-corrected Brier is slightly worse. The strongest remaining validation needs are adequate source-specific/external validation, subgroup interval estimation where event counts support it, direct PAS-5 patient-answer validation, and prespecified leakage-reviewed candidate-model comparison before any broader replacement model is considered.

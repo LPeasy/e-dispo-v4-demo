@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:v4": "tsc -b && node scripts/build_site_variant.mjs e_dispo_v4",
+    "build:general": "tsc -b && node scripts/build_site_variant.mjs general_e_dispo",
+    "build:all-sites": "npm run build:v4 && npm run build:general",
     "check:dist": "node scripts/check_dist_portability.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

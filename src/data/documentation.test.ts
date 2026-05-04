@@ -1,4 +1,6 @@
 import assert from "node:assert/strict"
+import { readdirSync, readFileSync, statSync } from "node:fs"
+import { join } from "node:path"
 import test from "node:test"
 
 import {
@@ -6,6 +8,10 @@ import {
   demoBoundaryCopy,
   documentationPages,
   modelCardRows,
+  overviewEvidence,
+  predictorSupportRows,
+  probastRiskRows,
+  qaEvidenceRows,
 } from "./documentation"
 import { activeEmpiricalModel } from "./eDispoV4Model"
 import {
@@ -248,18 +254,30 @@ test("pooled empirical app export validates and activates", () => {
 
   assert.equal(result.valid, true)
   assert.equal(result.label, "Pooled NHAMCS-derived coefficients active")
+  assert.equal(
+    activeEmpiricalModel.model_id,
+    "e-dispo-v4.1-pas5-high-acuity-surrogate"
+  )
   assert.equal(shouldUseEmpiricalCoefficients(activeEmpiricalModel), true)
   assert.equal(shouldUsePooledEmpiricalModel(activeEmpiricalModel), true)
-  assert.deepEqual(
-    activeEmpiricalModel.performance_intervals?.map((row) => row.metric).sort(),
-    ["auroc", "brier_score"]
+  assert.equal(activeEmpiricalModel.calibration.auroc, 0.759077823237526)
+  assert.equal(activeEmpiricalModel.calibration.brier_score, 0.091311819980443)
+  assert.equal(
+    activeEmpiricalModel.cohort_counts.NHAMCS_2018_2022_POOLED
+      .model_fit_complete_case_n,
+    2245
   )
   assert.ok(
-    activeEmpiricalModel.performance_intervals?.every(
+    activeEmpiricalModel.predictors.some(
       (row) =>
-        row.method ===
-          "survey_bootstrap_replicate_weights_fixed_apparent_predictions" &&
-        row.limitation.includes("does not refit")
+        row.term === "high_acuity_proxy" &&
+        row.evidence_tier === "dataset_derived_surrogate" &&
+        row.surrogate_source === "NHAMCS_IMMEDR"
+    )
+  )
+  assert.ok(
+    activeEmpiricalModel.validation_artifact_paths?.pas5_gate_decision?.endsWith(
+      "pas5_acuity_gate_decision.csv"
     )
   )
 })
@@ -328,8 +346,10 @@ test("missing or invalid pooled empirical app exports block activation", () => {
   assert.equal(
     shouldUsePooledEmpiricalModel({
       ...activeEmpiricalModel,
-      performance_intervals: activeEmpiricalModel.performance_intervals?.map((row) =>
-        row.metric === "auroc" ? { ...row, ci_low: row.estimate + 0.01 } : row
+      predictors: activeEmpiricalModel.predictors.map((row) =>
+        row.term === "high_acuity_proxy"
+          ? { ...row, evidence_tier: "dataset_derived" }
+          : row
       ),
     }),
     false
@@ -349,6 +369,40 @@ test("missing or invalid pooled empirical app exports block activation", () => {
     }),
     false
   )
+})
+
+test("documentation data has no active stale PAS-5 no-effect claims", () => {
+  const activeCopy = [
+    ...overviewEvidence.map((row) => row.value),
+    ...modelCardRows.map((row) => row.value),
+    ...predictorSupportRows.map((row) => `${row.nhamcs} ${row.support}`),
+    ...probastRiskRows.map((row) => `${row.concern} ${row.mitigation}`),
+    ...qaEvidenceRows.map((row) => `${row.check} ${row.evidence}`),
+    ...demoBoundaryCopy,
+  ].join(" ")
+
+  assert.doesNotMatch(activeCopy, /PAS-5 does not affect/i)
+  assert.doesNotMatch(activeCopy, /excluded prototype controls and PAS-5/i)
+  assert.doesNotMatch(activeCopy, /keep PAS-5 explanatory/i)
+  assert.match(activeCopy, /high_acuity_proxy/)
+  assert.match(activeCopy, /IMMEDR surrogate/)
+})
+
+test("source docs reject stale active PAS-5 no-effect language", () => {
+  const scannedText = [
+    ...readTextFiles("docs", [".md"]),
+    ...readTextFiles("src", [".ts", ".tsx"]).filter(
+      ({ path }) => !path.endsWith(".test.ts")
+    ),
+  ]
+    .map(({ text }) => text)
+    .join("\n")
+
+  assert.doesNotMatch(scannedText, /PAS-5 does not affect/i)
+  assert.doesNotMatch(scannedText, /excluded prototype controls and PAS-5/i)
+  assert.doesNotMatch(scannedText, /keep PAS-5 explanatory/i)
+  assert.doesNotMatch(scannedText, /inactive v4\.1/i)
+  assert.doesNotMatch(scannedText, /does not change P\(admit\)/i)
 })
 
 test("app defaults to the validated pooled empirical labels", () => {
@@ -377,3 +431,23 @@ test("endpoint-refined v3 language is present in documentation data", () => {
   assert.match(endpointTableText, /observation -> hospitalized/i)
   assert.match(endpointTableText, /Sensitivity A\/B/)
 })
+
+function readTextFiles(
+  root: string,
+  extensions: string[]
+): Array<{ path: string; text: string }> {
+  const results: Array<{ path: string; text: string }> = []
+
+  for (const entry of readdirSync(root)) {
+    const path = join(root, entry)
+    const stat = statSync(path)
+
+    if (stat.isDirectory()) {
+      results.push(...readTextFiles(path, extensions))
+    } else if (extensions.some((extension) => path.endsWith(extension))) {
+      results.push({ path, text: readFileSync(path, "utf-8") })
+    }
+  }
+
+  return results
+}

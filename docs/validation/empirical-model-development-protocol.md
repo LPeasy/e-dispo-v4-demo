@@ -2,7 +2,7 @@
 
 Date: 2026-04-28
 
-Status: empirical development protocol with `e-dispo-v4.0` adopted as the current educational app model. No pain monotonicity claim is made; active pain is severe vs non-severe only.
+Status: empirical development protocol with `e-dispo-v4.1-pas5-high-acuity-surrogate` adopted as the current educational app model. No pain monotonicity claim is made; active pain is severe vs non-severe only. PAS-5 is active only through `high_acuity_proxy`, fitted from NHAMCS `IMMEDR` as clinician-acuity surrogate evidence.
 
 ## Execution Readiness Checklist
 
@@ -66,6 +66,8 @@ No parameter, coefficient, prior, or app-export value may be labeled `dataset_de
 9. Calibration diagnostics.
 
 If any item is missing, the value remains `prototype_assumption`, `unsupported`, or blocked. Do not fabricate fitted results when raw data are unavailable.
+
+Surrogate-derived app terms must be labeled `dataset_derived_surrogate`, not ordinary `dataset_derived`. The active example is `high_acuity_proxy`, with `surrogate_source = NHAMCS_IMMEDR` and the limitation that direct PAS-5 patient answers are not observed in NHAMCS.
 
 ## Required Output Root
 
@@ -143,7 +145,7 @@ The binary endpoint is valid only after these records are removed and counted.
 
 ## Predictor Set
 
-### Current e-dispo-v4.0 Educational Model
+### Current e-dispo-v4.1 Educational Model
 
 Use this as the active educational empirical model only after predictor mapping, sparse-cell, uncertainty, calibration, and leave-one-year-out gates pass:
 
@@ -155,18 +157,20 @@ logit(P(admit)) =
   + beta_vomit * vomiting
   + beta_temp * temperature_or_fever
   + beta_tachycardia * max(HR - 100, 0) / 10
+  + beta_high_acuity_proxy * 1[PAS-5 in A1 or A2]
 ```
 
 | Predictor | NHAMCS mapping | MIMIC mapping | Status |
 |---|---|---|---|
 | Age | Exact age; app bands 18-34, 35-49, 50-64; spline sensitivity. | Linked age. | Direct. |
-| Pain severity | `PAINSCALE` 0-10; severe vs non-severe after observed mild/moderate/severe bins. | Parsed triage pain; numeric only primary. | Direct; severe-only term active in `e-dispo-v4.0`. |
-| Pain missing | Missing/blank/unknown indicator. | Missing/non-numeric pain indicator. | Excluded from active `e-dispo-v4.0`; sensitivity/missingness audit only. |
+| Pain severity | `PAINSCALE` 0-10; severe vs non-severe after observed mild/moderate/severe bins. | Parsed triage pain; numeric only primary. | Direct; severe-only term active in `e-dispo-v4.1`. |
+| Pain missing | Missing/blank/unknown indicator. | Missing/non-numeric pain indicator. | Excluded from active `e-dispo-v4.1`; sensitivity/missingness audit only. |
 | Vomiting | RFV/symptom/chief complaint/diagnosis proxy after code-list lock. | Chief-complaint vomiting terms; diagnosis sensitivity. | Proxy-supported only if counts pass. |
 | Fever/temperature | Objective temperature preferred; fever RFV/text sensitivity. | Triage temperature preferred; chief-complaint fever sensitivity. | Objective vitals preferred. |
-| Tachycardia burden | `PULSE`; `max(HR - 100, 0) / 10`; missing HR remains missing. | Triage/serial heart rate if timestamp-preserving extraction is available. | Active in `e-dispo-v4.0` as observed HR burden; duration is not feasible in NHAMCS. |
+| Tachycardia burden | `PULSE`; `max(HR - 100, 0) / 10`; missing HR remains missing. | Triage/serial heart rate if timestamp-preserving extraction is available. | Active in `e-dispo-v4.1` as observed HR burden; duration is not feasible in NHAMCS. |
+| PAS-5 high-acuity proxy | `IMMEDR` 1/2 mapped to high_acuity_proxy; `IMMEDR` 3/4/5 reference. | Direct PAS-5 answers would be preferred; MIMIC acuity is clinician-derived only. | Active in `e-dispo-v4.1` as `dataset_derived_surrogate`; not direct PAS-5 validation. |
 
-Pain severity is measurable, but it is not established as a monotonic admission predictor. The active v4.0 model therefore uses only severe vs non-severe pain and must not be described as a monotonic dose response.
+Pain severity is measurable, but it is not established as a monotonic admission predictor. The active v4.1 model therefore uses only severe vs non-severe pain and must not be described as a monotonic dose response.
 
 ### Future Expanded Development Model
 
@@ -453,7 +457,7 @@ Primary NHAMCS candidate models:
 
 | Model | Formula |
 |---|---|
-| Active `e-dispo-v4.0` | `admit ~ age_centered + pain_severe + vomiting + fever_or_temp + tachycardia_burden` |
+| Active `e-dispo-v4.1` | `admit ~ age_centered + pain_severe + vomiting + fever_or_temp + tachycardia_burden + high_acuity_proxy` |
 | Reduced plus acuity/vitals sensitivity | `admit ~ age_band + pain_bin + vomiting + temp + acuity + HR + SBP` |
 | Flexible future expanded candidate | `admit ~ spline(age) + acuity + spline(pain) + temp + HR + SBP + vomiting` |
 | Monotone pain test | Same as reduced/flexible model but with ordered pain increments. |
@@ -825,4 +829,4 @@ The strongest immediate empirical path may be Model B, but the cleanest app stor
 - Replaced the prior pain decision rule with stricter monotonicity criteria requiring NHAMCS trend, MIMIC non-reversal, adjusted coefficient order, calibration/Brier comparison, and confounding classification.
 - Added calibration failure rules for slope, intercept error, pain worsening, and NHAMCS-to-MIMIC transport failure.
 - Added exact deliverable schemas for cohort flow, endpoint audit, missingness, pain rates, coefficients, covariance, posterior draws, calibration, pain monotonicity, app export, and blocker reporting.
-- Updated the adoption boundary: `e-dispo-v4.0` is active for educational use, and pain is not called monotonic unless testing supports it.
+- Updated the adoption boundary: `e-dispo-v4.1-pas5-high-acuity-surrogate` is active for educational use, PAS-5 remains surrogate-labeled, and pain is not called monotonic unless testing supports it.

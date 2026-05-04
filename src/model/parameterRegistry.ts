@@ -3,6 +3,7 @@ import type { LogisticTerm, ModelInputs } from "./types"
 
 export type EvidenceTier =
   | "dataset_derived"
+  | "dataset_derived_surrogate"
   | "literature_prior"
   | "prototype_assumption"
   | "unsupported"
@@ -233,7 +234,7 @@ export const parameterRegistry: Record<keyof ModelInputs, ParameterDefinition> =
     id: "pas5",
     label: "Patient-perceived acuity proxy",
     intendedMeaning:
-      "Five-question PAS-5 self-report proxy, bridged to a binary high-acuity proxy for candidate modeling.",
+      "Five-question PAS-5 self-report proxy, bridged to the active binary high-acuity proxy.",
     userControl: "segmented",
     doseResponse: {
       kind: "nominal",
@@ -241,14 +242,19 @@ export const parameterRegistry: Record<keyof ModelInputs, ParameterDefinition> =
       levels: ["high_acuity", "urgent_reference", "lower_acuity"],
     },
     distributions: {
-      high_acuity: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
-      urgent_reference: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
-      lower_acuity: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
+      high_acuity: normalEffect(
+        1.24984421126593,
+        0.315343146380296,
+        ["nhamcs-immedr-surrogate"],
+        "dataset_derived_surrogate"
+      ),
+      urgent_reference: normalEffect(0, 0, ["nhamcs-immedr-surrogate"]),
+      lower_acuity: normalEffect(0, 0, ["nhamcs-immedr-surrogate"]),
     },
     documentationAnchor: "parameter-pas5-acuity-proxy",
     limitations:
-      "Direct PAS-5 answers are not observed in NHAMCS. The v4.1 screen maps PAS-5 A1/A2 to a binary high-acuity proxy and uses IMMEDR only as a surrogate. PAS-5 remains explanatory in e-dispo-v4.0.",
-    readyForEmpiricalUse: false,
+      "Direct PAS-5 answers are not observed in NHAMCS. The active v4.1 model maps PAS-5 A1/A2 to a binary high-acuity proxy and uses IMMEDR only as a surrogate.",
+    readyForEmpiricalUse: true,
   },
 }
 
@@ -303,6 +309,7 @@ export function activeParameterTerms(inputs: ModelInputs): LogisticTerm[] {
 export function evidenceTierLabel(tier: EvidenceTier): string {
   const labels: Record<EvidenceTier, string> = {
     dataset_derived: "Dataset-derived",
+    dataset_derived_surrogate: "Dataset-derived surrogate",
     literature_prior: "Literature prior",
     prototype_assumption: "Prototype assumption",
     unsupported: "Unsupported",

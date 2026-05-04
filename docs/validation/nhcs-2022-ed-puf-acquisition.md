@@ -30,7 +30,7 @@ Key available fields:
 | Nausea/vomiting proxy | `CCSR_SYM004`, nausea and vomiting |
 | Survey weights | `PUF_ENCWGT_BASE` plus 100 replicate weights |
 
-Key missing fields for `e-dispo-v4.0` validation:
+Key missing fields for `e-dispo-v4.1` validation:
 
 | Active model need | Status in NHCS 2022 ED PUF |
 |---|---|
@@ -70,7 +70,7 @@ Unweighted and base-weighted counts from local read:
 
 NHCS 2022 ED PUF is useful as an open, web-available external data source for broad feasibility checks, diagnosis-code cohort sizing, weighted descriptive comparisons, and limited discharge-status sensitivity work.
 
-It is not sufficient to validate the active `e-dispo-v4.0` model as specified because the public-use ED file does not expose the strict same-hospital inpatient admission endpoint or the key predictor fields for pain severity, fever/temperature, vomiting as a presenting symptom, or tachycardia burden.
+It is not sufficient to validate the active `e-dispo-v4.1` model as specified because the public-use ED file does not expose the strict same-hospital inpatient admission endpoint or the key predictor fields for pain severity, fever/temperature, vomiting as a presenting symptom, tachycardia burden, or direct PAS-5 answers.
 
 No NHCS-derived coefficient, prior, app parameter, or empirical label should be promoted from this acquisition note. A future NHCS pipeline should remain explicitly `unsupported` or `prototype_assumption` unless the endpoint, predictor mapping, missingness, fitted model, uncertainty, and calibration requirements in the repository evidence label rule are satisfied.
 

@@ -94,7 +94,7 @@ The validation script fits a reduced NHAMCS-supported logistic model using `ageB
 
 This reduced fit is a validation work product, not the active app model. It is not a clinical model and is not promoted into the web app.
 
-The active `e-dispo-v4.0` educational model is a later pooled NHAMCS 2018-2022 reduced refit. Its version-specific script is `scripts/nhamcs/nhamcs_e_dispo_v4_pain_severe_validation.R`, and its active pain term is `pain_severe = 1[pain_bin3 == severe]` with mild and moderate collapsed as non-severe.
+The active `e-dispo-v4.1-pas5-high-acuity-surrogate` educational model is a later pooled NHAMCS 2018-2022 reduced refit. Its PAS-5 version-specific script is `scripts/nhamcs/nhamcs_pas5_acuity_candidate_screen.R`; the archived v4.0 severe-pain script remains `scripts/nhamcs/nhamcs_e_dispo_v4_pain_severe_validation.R`. Active pain remains `pain_severe = 1[pain_bin3 == severe]` with mild and moderate collapsed as non-severe, and PAS-5 A1/A2 activate `high_acuity_proxy` through NHAMCS `IMMEDR` surrogate evidence.
 
 ## Pooled Nausea-Alone Candidate Screen
 
@@ -113,7 +113,7 @@ Run it after rebuilding the pooled cohort:
 Rscript scripts/nhamcs/nhamcs_nausea_candidate_screen.R outputs/nhamcs_pooled/analytic_cohort_nhamcs_2018_2022.csv outputs/nhamcs_pooled
 ```
 
-The 2026-05-01 run found that nausea-alone did not pass every prespecified gate, so no additional user-feasible NHAMCS symptom was promoted. The output evidence tier remains `survey_weighted_candidate`; the script does not write an app export or change `e-dispo-v4.0`.
+The 2026-05-01 run found that nausea-alone did not pass every prespecified gate, so nausea was not promoted. The output evidence tier remains `survey_weighted_candidate`; the script does not write an app export or change the active model.
 
 ## Required Review Before Promotion
 

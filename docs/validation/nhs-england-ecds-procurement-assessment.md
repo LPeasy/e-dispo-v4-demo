@@ -6,7 +6,7 @@ Date: 2026-05-04
 
 The likely target dataset is NHS England's Emergency Care Data Set (ECDS), the national urgent and emergency care data product for England. Record-level data was not procured in this work session because it is not a public download. NHS England routes ECDS access through DARS, with the NHS England Secure Data Environment (SDE) or an approved extract as access methods.
 
-Public metadata and technical documentation were reviewed. ECDS is a high-potential external validation source for the locked `e-dispo-v4.0` educational model, especially if accessed as structured ECDS plus linked HES admitted-patient-care data. It is not immediately usable until DARS access is approved and the exact field availability is confirmed.
+Public metadata and technical documentation were reviewed. ECDS is a high-potential external validation source for the locked `e-dispo-v4.1-pas5-high-acuity-surrogate` educational model, especially if accessed as structured ECDS plus linked HES admitted-patient-care data. It is not immediately usable until DARS access is approved and the exact field availability is confirmed.
 
 The free-text claim needs caution. Older ECDS v2.1 implementation material includes `EmCare_Clinical_Narrative` as local free text, but the current public analytical ECDS data model reviewed here exposes structured tables and does not show that clinical narrative field. Treat national free-text availability as unconfirmed until NHS England or a regional/trust SDE confirms it in the approved DARS data-item list.
 
@@ -38,7 +38,7 @@ Use SDE access rather than a raw extract if feasible. The model task does not ne
 
 Requested purpose should stay narrow:
 
-Validate, for educational/statistical research only, whether the existing `e-dispo-v4.0` model transports to English emergency care data for adult men ages 18-64 presenting with non-traumatic abdominal pain. Outputs should be aggregate validation tables, calibration/discrimination summaries, missingness tables, subgroup summaries with disclosure control, and a protocol report. The data should not be used for clinical decision support, triage, treatment, discharge advice, individual patient action, direct marketing, or record-level third-party sharing.
+Validate, for educational/statistical research only, whether the existing `e-dispo-v4.1-pas5-high-acuity-surrogate` model transports to English emergency care data for adult men ages 18-64 presenting with non-traumatic abdominal pain. Outputs should be aggregate validation tables, calibration/discrimination summaries, missingness tables, subgroup summaries with disclosure control, and a protocol report. The data should not be used for clinical decision support, triage, treatment, discharge advice, individual patient action, direct marketing, or record-level third-party sharing.
 
 Minimum data request:
 
@@ -52,7 +52,7 @@ Minimum data request:
 | Fairness and transport | Ethnicity, geography/region at non-disclosive level, deprivation if available, provider/site type, year/month. |
 | Free text | Ask DARS explicitly whether clinical narrative or discharge text exists in the releasable analytical product. If available, request only pre-disposition, timestamped, minimised text needed for phenotype validation, with an NLP/de-identification protocol. |
 
-## Usefulness For `e-dispo-v4.0`
+## Usefulness For `e-dispo-v4.1`
 
 | Model requirement | Expected ECDS support | Usefulness |
 |---|---|---|
@@ -81,7 +81,7 @@ Before any ECDS result can affect model claims or labels, the project must produ
 8. Standard errors, covariance, bootstrap draws, or posterior draws as applicable.
 9. Calibration diagnostics.
 
-For an external validation first pass, do not refit coefficients. Apply the locked NHAMCS `e-dispo-v4.0` coefficients to ECDS-mapped predictors, then report transport calibration and performance. If recalibration or refitting is later performed, label it as a separate ECDS-derived model and do not overwrite `e-dispo-v4.0` without a new evidence gate.
+For an external validation first pass, do not refit coefficients. Apply the locked NHAMCS `e-dispo-v4.1` coefficients to ECDS-mapped predictors, then report transport calibration and performance. If recalibration or refitting is later performed, label it as a separate ECDS-derived model and do not overwrite `e-dispo-v4.1-pas5-high-acuity-surrogate` without a new evidence gate.
 
 Avoid leakage:
 

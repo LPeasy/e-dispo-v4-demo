@@ -1,43 +1,76 @@
 # Pooled Empirical Model Performance Report
 
-This report summarizes the active reduced empirical model implemented as `e-dispo-v4.0`.
+This report summarizes the active reduced empirical model implemented as `e-dispo-v4.1-pas5-high-acuity-surrogate`.
 
 The model is for educational/statistical use only. It is not clinical decision support, medical advice, a triage tool, or a discharge-safety tool.
 
+## Public Build Split
+
+The active app workstream now supports two separate static builds from the same codebase:
+
+- `npm run build:v4` writes `dist/e-dispo-v4-demo/` for the current E-Dispo abdominal-pain app behavior.
+- `npm run build:general` writes `dist/general-e-dispo-demo/` for the separate `general-E-Dispo-model-v1-sex-adjusted` all-sex/all-age non-trauma demo.
+- `npm run build:all-sites` writes both outputs.
+
+`general-E-Dispo-model-v1-sex-adjusted` is a parallel public runnable model built from the plus-sex sensitivity artifact. It is not a replacement for the abdominal-pain model and does not establish clinical use, external validation, or transportability.
+
 ## Model Status
 
-- Model ID: `e-dispo-v4.0`
+- Model ID: `e-dispo-v4.1-pas5-high-acuity-surrogate`
 - Dataset: `NHAMCS_2018_2022_POOLED`
 - Endpoint: same-hospital admission vs routine home discharge after exclusions
 - Population: adult men ages 18-64, ED, non-traumatic abdominal pain
 - Empirical activation: active for educational use after app-side export validation
-- Formula: `admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden`
+- Formula: `admit ~ age_centered + pain_severe + fever_or_temp + vomiting_present + tachycardia_burden + high_acuity_proxy`
 - Age transformation: `age_centered = age - 42`
 - Tachycardia transformation: `tachycardia_burden = max(HR - 100, 0) / 10`
 - Pain transformation: `pain_severe = 1[pain_bin3 == severe]`; mild and moderate are collapsed as non-severe.
+- PAS-5 transformation: `high_acuity_proxy = 1` when PAS-5 maps to A1/A2; PAS-5 A3/A4/A5 are reference.
 - Pain monotonicity verdict: `nonmonotonic_collapsed_to_severe_binary`
 - Missingness handling: observed pain and observed HR are required; HR missing is not treated as normal.
+- Surrogate limitation: NHAMCS does not contain direct PAS-5 patient answers; `high_acuity_proxy` is fitted from `IMMEDR` as a clinician-acuity surrogate.
 
 ## Cohort Snapshot
 
-- Complete-case unweighted N for `e-dispo-v4.0` fit: 2,674
-- Admission events in complete-case `e-dispo-v4.0` fit: 307
+- PAS-5/IMMEDR complete-case unweighted N for `e-dispo-v4.1` fit: 2,245
+- Admission events in complete-case `e-dispo-v4.1` fit: 254
 - Full strict binary pooled NHAMCS N before complete-case restriction: 3,805
 - Full strict binary pooled NHAMCS admission events before complete-case restriction: 459
 - Event-count gate: passed
 
 ## Apparent Performance
 
-- AUROC/C-statistic: 0.713
-- Brier score: 0.0976
-- Observed prevalence: 11.75%
-- Mean predicted probability: 11.75%
+- AUROC/C-statistic: 0.759077823237526
+- Brier score: 0.091311819980443
+- Observed prevalence: 11.3520799110049%
+- Mean predicted probability: 11.3520799126063%
 - Calibration intercept: approximately 0.000
 - Calibration slope: approximately 1.000
 
+## PAS-5 v4.1 Surrogate Artifacts
+
+The 2026-05-04 PAS-5 screen was rerun deterministically and wrote the active v4.1 artifact set:
+
+- `outputs/nhamcs_pooled/pas5_acuity_mapping.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_missingness.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_cell_counts.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_coefficients.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_covariance.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_draws_app.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_draws_long.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_calibration.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_decile_calibration.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_leave_one_year_out.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_gate_decision.csv`
+- `outputs/nhamcs_pooled/pas5_acuity_report.md`
+
+The high-acuity proxy cell had n=163, 53 events, and 110 non-events. The fitted high-acuity coefficient was 1.24984421126593 (SE 0.315343146380296; OR 3.48979924370436; 95% CI 1.88093998584976 to 6.47479390782237). The same-subset base refit had AUROC 0.736367002137274 and Brier 0.093767198895187. The v4.1 candidate improved mean leave-one-year-out AUROC by 0.0195420688224538 and Brier by -0.00224960097683449; the 2018 heldout year worsened, so year-level stability remains imperfect.
+
+This does not validate PAS-5 as direct patient self-assessment accuracy. The app-visible PAS-5 answers are bridged to the NHAMCS `IMMEDR` clinician-acuity surrogate because NHAMCS does not observe the direct patient answers.
+
 ## Reviewer Calibration And Interval Artifacts
 
-The 2026-05-03 reviewer artifact pass added grouped calibration, apparent-performance interval, subgroup, missingness, optimism-correction, transportability-blocker, candidate-gate, and full-source NHAMCS scope-screen outputs for the active model:
+The 2026-05-03 reviewer artifact pass added grouped calibration, apparent-performance interval, subgroup, missingness, optimism-correction, transportability-blocker, candidate-gate, and full-source NHAMCS scope-screen outputs for the historical v4.0 model. Those remain archived support rather than the active v4.1 PAS-5 draw source:
 
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_calibration_by_decile.csv`
 - `outputs/nhamcs_pooled/e_dispo_v4_pain_severe_calibration_plot_data.csv`
@@ -123,7 +156,7 @@ The candidate-refinement gate blocks AAP-3, SBP, acuity, hematemesis, nausea-alo
 
 ## Full-Source NHAMCS Scope Screen
 
-The 2026-05-03 full-source screen applies the fixed active `e-dispo-v4.0` coefficients to broader NHAMCS strict-binary endpoint cohorts. It does not refit the model, does not change coefficients, and does not promote a broader population claim.
+The 2026-05-03 full-source screen applies the fixed predecessor `e-dispo-v4.0` coefficients to broader NHAMCS strict-binary endpoint cohorts. It does not refit the model, does not change coefficients, and does not promote a broader population claim. It remains archived support rather than the current v4.1 PAS-5/IMMEDR validation result.
 
 | Screen | Strict-binary N | Events | Model-estimable N | Model-estimable events | AUROC | Brier | Status |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -136,7 +169,7 @@ These rows are out-of-scope NHAMCS source/generalization screens. They are usefu
 
 ## Full-Source Non-Trauma Candidate Track
 
-The 2026-05-03 candidate track adds a separate broader NHAMCS non-trauma development model, `e-dispo-v4.1-full-source-nontrauma-admit`. This candidate is not male-only: it removes the active model's sex, age, and abdominal-pain gates while retaining the non-trauma restriction. The model is labeled `survey_weighted_candidate`; it does not replace active `e-dispo-v4.0` and is not used by the GitHub Pages app.
+The 2026-05-03 candidate track adds a separate broader NHAMCS non-trauma development model, `e-dispo-v4.1-full-source-nontrauma-admit`. This candidate is not male-only: it removes the active model's sex, age, and abdominal-pain gates while retaining the non-trauma restriction. The model is labeled `survey_weighted_candidate`; it does not replace active `e-dispo-v4.1-pas5-high-acuity-surrogate` and is not used by the GitHub Pages app.
 
 | Candidate | Target | Denominator | Events | Complete-case N | Complete-case events | AUROC | Brier | Status |
 |---|---|---:|---:|---:|---:|---:|---:|---|
@@ -160,7 +193,7 @@ This candidate track is a development artifact only. Raw-variable associations c
 
 ## Parallel General Non-Trauma Model
 
-The 2026-05-04 pass adds `general-E-Dispo-model-v1`, a separate all-sex/all-age NHAMCS non-trauma educational/statistical model artifact. This model is not the active app model and is not a candidate replacement for `e-dispo-v4.0` in this pass.
+The 2026-05-04 pass adds `general-E-Dispo-model-v1`, a separate all-sex/all-age NHAMCS non-trauma educational/statistical model artifact. This model is not the active app model and is not a candidate replacement for `e-dispo-v4.1-pas5-high-acuity-surrogate` in this pass.
 
 The source cohort is `outputs/nhamcs_pooled/full_source_nontrauma_cohort_nhamcs_2018_2022.csv`. The yearly/full-source builder now carries raw `AMBTRANSFER`, harmonized `arrival_transfer_context`, raw `IMMEDR`, harmonized `acuity_code`, and derived `hypotension_burden`; the corresponding code-list map is `config/code_lists/nhamcs_general_e_dispo_model_recode_maps.yml`.
 
@@ -218,37 +251,38 @@ Approximate odds ratios from the exported coefficients:
 
 | Term | Beta | Approximate OR | Interpretation boundary |
 |---|---:|---:|---|
-| `age_centered` | 0.043 | 1.04 per year; 1.54 per decade | Direct age signal inside the narrow adult male cohort. |
-| `pain_severe` | 0.522 | 1.69 | Severe vs non-severe pain signal; not a monotonic pain dose response. |
-| `fever_or_temp` | 0.887 | 2.43 | Fever/temperature proxy remains positive, with a large standard error. |
-| `vomiting_present` | 0.469 | 1.60 | Ordinary vomiting RFV/symptom proxy is active. |
-| `tachycardia_burden` | 0.427 | 1.53 per 10 bpm over 100 | Observed HR signal; missing HR blocks the `e-dispo-v4.0` estimate. |
+| `age_centered` | 0.045 | 1.05 per year | Direct age signal inside the narrow adult male cohort. |
+| `pain_severe` | 0.556 | 1.74 | Severe vs non-severe pain signal; not a monotonic pain dose response. |
+| `fever_or_temp` | 0.994 | 2.70 | Fever/temperature proxy remains positive, with a large standard error. |
+| `vomiting_present` | 0.431 | 1.54 | Ordinary vomiting RFV/symptom proxy is active. |
+| `tachycardia_burden` | 0.456 | 1.58 per 10 bpm over 100 | Observed HR signal; missing HR blocks the `e-dispo-v4.1` estimate. |
+| `high_acuity_proxy` | 1.250 | 3.49 | PAS-5 A1/A2 vs A3/A4/A5, fitted through NHAMCS IMMEDR surrogate evidence. |
 
 ## Predictive-Power Finding
 
-The `e-dispo-v4.0` model has moderate discrimination and coherent apparent calibration in the exported pooled dataset. Its severe-only pain term retains essentially all flexible-pain discrimination while removing the imprecise mild-vs-moderate contrast. Its predictive power is enough to demonstrate endpoint recoding, evidence-gated coefficients, a defensible observed physiologic input, and transparent probability calculation. It is not strong enough to support individual-level clinical action, safety claims, triage claims, or deployment claims.
+The `e-dispo-v4.1-pas5-high-acuity-surrogate` model has moderate discrimination and coherent apparent calibration in the exported pooled PAS-5/IMMEDR complete-case dataset. Adding the high-acuity proxy improved same-subset AUROC and Brier on average, but the source remains internal NHAMCS surrogate evidence with imperfect year-level stability. Its predictive power is enough to demonstrate endpoint recoding, evidence-gated coefficients, surrogate labeling, and transparent probability calculation. It is not strong enough to support individual-level clinical action, safety claims, triage claims, or deployment claims.
 
 The exact apparent calibration intercept and slope should be read as an apparent/exported calibration check, not as proof of transportability. The fixed-prediction intervals quantify design-aware apparent metric variability. The bootstrap-refit pass adds internal optimism correction. The full-source NHAMCS screen is an out-of-scope source stress test. None of these establishes external validation or transportability.
 
 ## Usability Finding
 
-The active empirical input set remains simple but now requires one numeric vital sign: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, and observed HR. The HR rule is understandable in the UI because values at or below 100 contribute zero and each 10 bpm above 100 adds one tachycardia-burden unit.
+The active empirical input set remains simple but now requires one numeric vital sign and a five-question self-report proxy: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, observed HR, and PAS-5 high-acuity proxy status. The HR rule is understandable in the UI because values at or below 100 contribute zero and each 10 bpm above 100 adds one tachycardia-burden unit. PAS-5 is understandable because only A1/A2 activate the surrogate term.
 
 Current usability limitations:
 
 - The UI still displays excluded prototype controls. They are labeled as excluded, but users may still expect them to affect the empirical probability.
 - Pain missingness was removed from the active model by requiring observed pain; the app should not silently treat missing pain as non-severe.
-- Missing HR blocks the `e-dispo-v4.0` empirical estimate because NHAMCS missing HR is not normal HR.
+- Missing HR blocks the `e-dispo-v4.1` empirical estimate because NHAMCS missing HR is not normal HR.
 - Unknown fever or vomiting does not activate the empirical yes coefficient. Unknown should not be interpreted as confirmed absence.
-- AAP-3 is useful as an explanatory acuity proxy, but it is not dataset-derived and does not change P(admit).
+- PAS-5 is not direct self-acuity validation because direct patient answers are not observed in NHAMCS.
 - NHAMCS has one `PULSE` value, so tachycardia duration is not feasible in this source.
 - The model applies only after the strict scope and endpoint rules. It is not designed for patients outside the narrow adult male, non-traumatic abdominal pain cohort.
 
 ## Recommended Next Work
 
 1. Keep excluded prototype controls visually separated from the empirical input set.
-2. Review the new grouped calibration tables, plot data, AUROC/Brier apparent intervals, full-source scope screens, and 200-refit optimism-corrected internal estimates.
+2. Review the PAS-5 v4.1 calibration tables, draw files, gate decision, and leave-one-year-out year-level caveat.
 3. Add subgroup interval estimates where event counts and survey design support them.
 4. Build an adequate source-specific validation cohort before making any external-validation or transportability claim.
-5. Validate AAP-3 against NHAMCS `IMMEDR` or MIMIC-IV-ED triage acuity before allowing it to affect risk.
+5. Validate PAS-5 in a source with direct patient answers before making direct self-assessment claims.
 6. Treat tachycardia duration as a later MIMIC-only question that requires timestamp-preserving vital-sign extraction.

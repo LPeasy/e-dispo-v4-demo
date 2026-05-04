@@ -47,7 +47,7 @@ Checked viewport sizes:
 
 ## Intentional Deviations
 
-- The generated concept used some clinical/lab-style example predictors in lower-state previews. The implementation keeps the class model's seven worksheet predictors while `e-dispo-v4.0` uses the reduced empirical subset for P(admit).
+- The generated concept used some clinical/lab-style example predictors in lower-state previews. The implementation keeps the bounded worksheet experience while `e-dispo-v4.1-pas5-high-acuity-surrogate` uses the reduced empirical subset plus PAS-5 `high_acuity_proxy` for P(admit).
 - The concept included a right evidence pane. The revised implementation intentionally moves evaluator-facing evidence into the Documentation section so the Model Demo stays lean.
 - The concept included a top utility bar. The implementation keeps status and documentation navigation in the page header and sidebar to match the existing shadcn/Vite app shell.
 

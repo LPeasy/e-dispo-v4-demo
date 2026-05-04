@@ -9,6 +9,11 @@ export const pooledEmpiricalCoefficientDrawAssetUrl = new URL(
   import.meta.url
 ).href
 
+export const generalEDispoCoefficientDrawAssetUrl = new URL(
+  "./general-e-dispo-coefficient-draws.csv",
+  import.meta.url
+).href
+
 export type PooledEmpiricalCoefficientVector = {
   intercept: number
   age_centered: number
@@ -17,21 +22,49 @@ export type PooledEmpiricalCoefficientVector = {
   vomiting_present: number
   tachycardia_burden: number
   high_acuity_proxy?: number
+  age_centered_40?: number
+  sex_2?: number
+  acuity_code_blank?: number
+  acuity_code_unknown?: number
+  acuity_code_no_triage_esa_conducts_triage?: number
+  acuity_code_immediate?: number
+  acuity_code_emergent?: number
+  acuity_code_semi_urgent?: number
+  acuity_code_nonurgent?: number
+  acuity_code_no_nursing_triage_esa?: number
+  arrival_transfer_context_blank?: number
+  arrival_transfer_context_unknown?: number
+  arrival_transfer_context_not_applicable?: number
+  arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care?: number
+  hypotension_burden?: number
+  [key: string]: number | undefined
 }
 
 export const pooledEmpiricalCoefficientDrawMetadata = {
-  modelId: "e-dispo-v4.0",
+  modelId: "e-dispo-v4.1-pas5-high-acuity-surrogate",
   source: "NHAMCS_2018_2022_POOLED",
-  seed: 20260428,
+  seed: 20260504,
   drawCount: 10000,
-  sourcePath: "outputs/nhamcs_pooled/e_dispo_v4_pain_severe_draws.csv",
+  sourcePath: "outputs/nhamcs_pooled/pas5_acuity_draws_app.csv",
   assetPath: pooledEmpiricalCoefficientDrawAssetUrl,
+} as const
+
+export const generalEDispoCoefficientDrawMetadata = {
+  modelId: "general-E-Dispo-model-v1-sex-adjusted",
+  source: "NHAMCS_2018_2022_POOLED",
+  seed: 20260429,
+  drawCount: 10000,
+  sourcePath:
+    "outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_covariance.csv",
+  assetPath: generalEDispoCoefficientDrawAssetUrl,
 } as const
 
 const eDispoV40CoefficientDrawHeader =
   "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed"
 const eDispoV41Pas5CoefficientDrawHeader =
   "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,high_acuity_proxy,seed"
+const generalEDispoCoefficientDrawHeader =
+  "draw_id,intercept,age_centered_40,sex_2,acuity_code_blank,acuity_code_unknown,acuity_code_no_triage_esa_conducts_triage,acuity_code_immediate,acuity_code_emergent,acuity_code_semi_urgent,acuity_code_nonurgent,acuity_code_no_nursing_triage_esa,arrival_transfer_context_blank,arrival_transfer_context_unknown,arrival_transfer_context_not_applicable,arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care,fever_or_temp,tachycardia_burden,hypotension_burden,seed"
 
 const expectedCoefficientKeys = [
   "intercept",
@@ -42,17 +75,41 @@ const expectedCoefficientKeys = [
   "tachycardia_burden",
 ] as const
 
+const generalExpectedCoefficientKeys = [
+  "intercept",
+  "age_centered_40",
+  "sex_2",
+  "acuity_code_blank",
+  "acuity_code_unknown",
+  "acuity_code_no_triage_esa_conducts_triage",
+  "acuity_code_immediate",
+  "acuity_code_emergent",
+  "acuity_code_semi_urgent",
+  "acuity_code_nonurgent",
+  "acuity_code_no_nursing_triage_esa",
+  "arrival_transfer_context_blank",
+  "arrival_transfer_context_unknown",
+  "arrival_transfer_context_not_applicable",
+  "arrival_transfer_context_yes_transferred_from_hospital_or_urgent_care",
+  "fever_or_temp",
+  "tachycardia_burden",
+  "hypotension_burden",
+] as const
+
 type CoefficientDrawSchema =
   | "e-dispo-v4.0"
   | "e-dispo-v4.1-pas5-high-acuity-surrogate"
+  | "general-E-Dispo-model-v1-sex-adjusted"
+
+export type CoefficientDrawModelId = CoefficientDrawSchema
 
 const defaultCoefficientDrawAssetTimeoutMs = 15_000
 
 export type PooledEmpiricalCoefficientDraw = {
   drawId: number
-  source: typeof pooledEmpiricalCoefficientDrawMetadata.source
+  source: "NHAMCS_2018_2022_POOLED"
   modelId: CoefficientDrawSchema
-  seed: typeof pooledEmpiricalCoefficientDrawMetadata.seed
+  seed: number
   coefficients: PooledEmpiricalCoefficientVector
 }
 
@@ -91,13 +148,27 @@ export type LoadPooledEmpiricalCoefficientDrawsOptions = {
   timeoutMs?: number
 }
 
-let coefficientDrawCache: PooledEmpiricalCoefficientDraw[] | null = null
+const coefficientDrawCacheByModelId = new Map<
+  CoefficientDrawModelId,
+  PooledEmpiricalCoefficientDraw[]
+>()
 
 export async function loadPooledEmpiricalCoefficientDraws(
   options: LoadPooledEmpiricalCoefficientDrawsOptions = {}
 ): Promise<PooledEmpiricalCoefficientDraw[]> {
-  if (coefficientDrawCache !== null) {
-    return coefficientDrawCache
+  return loadCoefficientDrawsForModel(
+    pooledEmpiricalCoefficientDrawMetadata.modelId,
+    options
+  )
+}
+
+export async function loadCoefficientDrawsForModel(
+  modelId: CoefficientDrawModelId,
+  options: LoadPooledEmpiricalCoefficientDrawsOptions = {}
+): Promise<PooledEmpiricalCoefficientDraw[]> {
+  const cachedDraws = coefficientDrawCacheByModelId.get(modelId)
+  if (cachedDraws) {
+    return cachedDraws
   }
 
   const fetchDraws = options.fetchDraws ?? globalThis.fetch
@@ -108,7 +179,8 @@ export async function loadPooledEmpiricalCoefficientDraws(
     )
   }
 
-  const assetPath = options.assetPath ?? pooledEmpiricalCoefficientDrawAssetUrl
+  const metadata = coefficientDrawMetadataForModel(modelId)
+  const assetPath = options.assetPath ?? metadata.assetPath
   const timeoutMs =
     options.timeoutMs ?? defaultCoefficientDrawAssetTimeoutMs
   const response = await withAssetTimeout(
@@ -130,18 +202,18 @@ export async function loadPooledEmpiricalCoefficientDraws(
     "read_timeout",
     "Timed out while reading coefficient draws."
   )
-  coefficientDrawCache = parsePooledEmpiricalCoefficientDrawCsv(
-    csvText
-  )
-  return coefficientDrawCache
+  const draws = parsePooledEmpiricalCoefficientDrawCsv(csvText, modelId)
+  coefficientDrawCacheByModelId.set(modelId, draws)
+  return draws
 }
 
 export function clearPooledEmpiricalCoefficientDrawCache() {
-  coefficientDrawCache = null
+  coefficientDrawCacheByModelId.clear()
 }
 
 export function parsePooledEmpiricalCoefficientDrawCsv(
-  text: string
+  text: string,
+  expectedModelId?: CoefficientDrawModelId
 ): PooledEmpiricalCoefficientDraw[] {
   if (text.trim().length === 0) {
     throw new CoefficientDrawAssetError(
@@ -164,14 +236,22 @@ export function parsePooledEmpiricalCoefficientDrawCsv(
     )
   }
 
+  if (expectedModelId && schema !== expectedModelId) {
+    throw new CoefficientDrawAssetError(
+      "schema_mismatch",
+      "Coefficient draw CSV header does not match the requested model."
+    )
+  }
+
   const draws = rows.map((row) => parseCoefficientDrawRow(row, schema))
-  validatePooledEmpiricalCoefficientDraws(draws)
+  validatePooledEmpiricalCoefficientDraws(draws, expectedModelId ?? schema)
 
   return draws
 }
 
 export function validatePooledEmpiricalCoefficientDraws(
-  draws: PooledEmpiricalCoefficientDraw[]
+  draws: PooledEmpiricalCoefficientDraw[],
+  expectedModelId: CoefficientDrawModelId = pooledEmpiricalCoefficientDrawMetadata.modelId
 ) {
   if (draws.length === 0) {
     throw new CoefficientDrawAssetError(
@@ -180,31 +260,29 @@ export function validatePooledEmpiricalCoefficientDraws(
     )
   }
 
-  if (draws.length !== pooledEmpiricalCoefficientDrawMetadata.drawCount) {
+  const metadata = coefficientDrawMetadataForModel(expectedModelId)
+  if (draws.length !== metadata.drawCount) {
     throw new CoefficientDrawAssetError(
       "row_count_mismatch",
-      `Expected ${pooledEmpiricalCoefficientDrawMetadata.drawCount.toLocaleString()} coefficient draws, found ${draws.length.toLocaleString()}.`
+      `Expected ${metadata.drawCount.toLocaleString()} coefficient draws, found ${draws.length.toLocaleString()}.`
     )
   }
 
   const drawIds = new Set<number>()
   for (const draw of draws) {
-    if (draw.source !== pooledEmpiricalCoefficientDrawMetadata.source) {
+    if (draw.source !== metadata.source) {
       throw new CoefficientDrawAssetError(
         "invalid_metadata",
         `Unexpected coefficient draw source: ${draw.source}.`
       )
     }
-    if (
-      draw.modelId !== pooledEmpiricalCoefficientDrawMetadata.modelId &&
-      draw.modelId !== "e-dispo-v4.1-pas5-high-acuity-surrogate"
-    ) {
+    if (draw.modelId !== metadata.modelId) {
       throw new CoefficientDrawAssetError(
         "invalid_metadata",
         `Unexpected coefficient draw model ID: ${draw.modelId}.`
       )
     }
-    if (draw.seed !== pooledEmpiricalCoefficientDrawMetadata.seed) {
+    if (draw.seed !== metadata.seed) {
       throw new CoefficientDrawAssetError(
         "invalid_metadata",
         `Unexpected coefficient draw seed: ${draw.seed}.`
@@ -224,7 +302,11 @@ export function validatePooledEmpiricalCoefficientDraws(
     }
     drawIds.add(draw.drawId)
 
-    for (const key of expectedCoefficientKeys) {
+    const requiredKeys =
+      expectedModelId === "general-E-Dispo-model-v1-sex-adjusted"
+        ? generalExpectedCoefficientKeys
+        : expectedCoefficientKeys
+    for (const key of requiredKeys) {
       const coefficient = draw.coefficients[key]
       if (!Number.isFinite(coefficient)) {
         throw new CoefficientDrawAssetError(
@@ -251,14 +333,17 @@ function parseCoefficientDrawRow(
   schema: CoefficientDrawSchema
 ): PooledEmpiricalCoefficientDraw {
   const cells = row.split(",")
-  const expectedCellCount =
-    schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? 9 : 8
+  const expectedCellCount = expectedCellCountForSchema(schema)
 
   if (cells.length !== expectedCellCount) {
     throw new CoefficientDrawAssetError(
       "invalid_row",
       "Coefficient draw CSV row does not match the app schema."
     )
+  }
+
+  if (schema === "general-E-Dispo-model-v1-sex-adjusted") {
+    return parseGeneralCoefficientDrawRow(cells)
   }
 
   const [
@@ -275,7 +360,8 @@ function parseCoefficientDrawRow(
   const seed =
     schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? cells[8] : cells[7]
   const parsedSeed = Number(seed)
-  if (parsedSeed !== pooledEmpiricalCoefficientDrawMetadata.seed) {
+  const metadata = coefficientDrawMetadataForModel(schema)
+  if (parsedSeed !== metadata.seed) {
     throw new CoefficientDrawAssetError(
       "invalid_metadata",
       `Unexpected coefficient draw seed: ${seed}.`
@@ -284,9 +370,9 @@ function parseCoefficientDrawRow(
 
   return {
     drawId: finiteNumber(drawId, "draw_id"),
-    source: pooledEmpiricalCoefficientDrawMetadata.source,
+    source: metadata.source,
     modelId: schema,
-    seed: pooledEmpiricalCoefficientDrawMetadata.seed,
+    seed: metadata.seed,
     coefficients: {
       intercept: finiteNumber(intercept, "intercept"),
       age_centered: finiteNumber(ageCentered, "age_centered"),
@@ -309,18 +395,75 @@ function parseCoefficientDrawRow(
   }
 }
 
+function parseGeneralCoefficientDrawRow(
+  cells: string[]
+): PooledEmpiricalCoefficientDraw {
+  const metadata = coefficientDrawMetadataForModel(
+    "general-E-Dispo-model-v1-sex-adjusted"
+  )
+  const [drawId, ...coefficientAndSeed] = cells
+  const seed = coefficientAndSeed[coefficientAndSeed.length - 1]
+  const parsedSeed = Number(seed)
+  if (parsedSeed !== metadata.seed) {
+    throw new CoefficientDrawAssetError(
+      "invalid_metadata",
+      `Unexpected coefficient draw seed: ${seed}.`
+    )
+  }
+
+  const coefficients = Object.fromEntries(
+    generalExpectedCoefficientKeys.map((key, index) => [
+      key,
+      finiteNumber(coefficientAndSeed[index], key),
+    ])
+  ) as PooledEmpiricalCoefficientVector
+
+  return {
+    drawId: finiteNumber(drawId, "draw_id"),
+    source: metadata.source,
+    modelId: metadata.modelId,
+    seed: metadata.seed,
+    coefficients,
+  }
+}
+
 function coefficientDrawSchemaForHeader(
   header: string
 ): CoefficientDrawSchema | null {
-  if (header === eDispoV40CoefficientDrawHeader) {
+  const normalizedHeader = header.replaceAll('"', "")
+
+  if (normalizedHeader === eDispoV40CoefficientDrawHeader) {
     return "e-dispo-v4.0"
   }
 
-  if (header === eDispoV41Pas5CoefficientDrawHeader) {
+  if (normalizedHeader === eDispoV41Pas5CoefficientDrawHeader) {
     return "e-dispo-v4.1-pas5-high-acuity-surrogate"
   }
 
+  if (normalizedHeader === generalEDispoCoefficientDrawHeader) {
+    return "general-E-Dispo-model-v1-sex-adjusted"
+  }
+
   return null
+}
+
+function expectedCellCountForSchema(schema: CoefficientDrawSchema): number {
+  if (schema === "general-E-Dispo-model-v1-sex-adjusted") {
+    return generalExpectedCoefficientKeys.length + 2
+  }
+
+  return schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? 9 : 8
+}
+
+function coefficientDrawMetadataForModel(modelId: CoefficientDrawModelId) {
+  if (modelId === "general-E-Dispo-model-v1-sex-adjusted") {
+    return generalEDispoCoefficientDrawMetadata
+  }
+
+  return {
+    ...pooledEmpiricalCoefficientDrawMetadata,
+    modelId,
+  }
 }
 
 function finiteNumber(value: string | undefined, label: string): number {

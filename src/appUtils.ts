@@ -1,4 +1,10 @@
-import type { AgeBand, BinarySymptom, ModelInputs, PainSeverity } from "@/model/types";
+import type {
+  AgeBand,
+  BinarySymptom,
+  GeneralModelInputs,
+  ModelInputs,
+  PainSeverity,
+} from "@/model/types";
 import type { ReadinessState, SimulationCount } from "@/appTypes";
 import { pas5Questions } from "@/model/aap3Acuity";
 
@@ -17,7 +23,38 @@ export function buildReadinessState(
   if (heartRateBpm === null) {
     return {
       canRun: false,
-      error: "observed HR is required for this v4 estimate.",
+      error: "observed HR is required for this v4.1 estimate.",
+    };
+  }
+
+  return { canRun: true, error: null };
+}
+
+export function buildGeneralReadinessState(
+  generalInputs: GeneralModelInputs,
+): ReadinessState {
+  if (
+    !Number.isFinite(generalInputs.age) ||
+    generalInputs.age < 0 ||
+    generalInputs.age > 120
+  ) {
+    return {
+      canRun: false,
+      error: "Age must be from 0-120 for the general model.",
+    };
+  }
+
+  if (generalInputs.heartRateBpm === null) {
+    return {
+      canRun: false,
+      error: "Observed HR is required for the general model.",
+    };
+  }
+
+  if (generalInputs.systolicBloodPressure === null) {
+    return {
+      canRun: false,
+      error: "Observed SBP is required for the general model.",
     };
   }
 
@@ -37,6 +74,23 @@ export function buildModelRunKey(
     inputs.fever,
     inputs.vomiting,
     ...pas5Questions.map((question) => inputs.pas5[question.id]),
+    sampleCount,
+  ].join("|");
+}
+
+export function buildGeneralModelRunKey(
+  generalInputs: GeneralModelInputs,
+  sampleCount: SimulationCount,
+): string {
+  return [
+    "general-E-Dispo-model-v1-sex-adjusted",
+    generalInputs.age,
+    generalInputs.sex,
+    generalInputs.acuityCode,
+    generalInputs.arrivalTransferContext,
+    generalInputs.fever,
+    generalInputs.heartRateBpm ?? "missing_hr",
+    generalInputs.systolicBloodPressure ?? "missing_sbp",
     sampleCount,
   ].join("|");
 }
@@ -74,6 +128,15 @@ export function deriveAgeBand(age: number): AgeBand | null {
 }
 
 export function parseHeartRate(value: string): number | null {
+  if (value.trim().length === 0) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function parsePositiveNumber(value: string): number | null {
   if (value.trim().length === 0) {
     return null;
   }

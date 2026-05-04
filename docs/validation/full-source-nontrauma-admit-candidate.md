@@ -2,13 +2,13 @@
 
 Date: 2026-05-03
 
-Active model remains: `e-dispo-v4.0`
+Active app model: `e-dispo-v4.1-pas5-high-acuity-surrogate`
 
 Candidate model ID: `e-dispo-v4.1-full-source-nontrauma-admit`
 
 This note documents a separate reviewer/development track on the broader full-source NHAMCS non-trauma cohort. It is educational/statistical only. It is not the active GitHub Pages model, not clinical decision support, not external validation, and not transportability evidence.
 
-Status note, 2026-05-04: `general-E-Dispo-model-v1` now exists as a cleaner parallel all-sex/all-age non-trauma model artifact using age, NHAMCS acuity, AMBTRANSFER arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. This older `e-dispo-v4.1-full-source-nontrauma-admit` track remains useful for comparability to the compact active-model predictor surface, but it is not the clean general model and it still does not replace `e-dispo-v4.0`.
+Status note, 2026-05-04: `general-E-Dispo-model-v1` now exists as a cleaner parallel all-sex/all-age non-trauma model artifact using age, NHAMCS acuity, AMBTRANSFER arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. This older `e-dispo-v4.1-full-source-nontrauma-admit` track remains useful for comparability to the compact active-model predictor surface, but it is not the clean general model and it still does not replace the active adult-male abdominal-pain v4.1 app model.
 
 ## Candidate Model Method
 
@@ -77,7 +77,7 @@ The apparent calibration intercept and slope are expected to be near 0 and 1 bec
 | `vomiting_present` | 0.432729 | 0.076006 | 1.541458 | `survey_weighted_candidate` |
 | `tachycardia_burden` | 0.317068 | 0.020883 | 1.373096 | `survey_weighted_candidate` |
 
-The severe-pain coefficient is much smaller in this broader non-trauma source scope than in the active adult-male abdominal-pain model. That is a useful development finding, but it does not update `e-dispo-v4.0`.
+The severe-pain coefficient is much smaller in this broader non-trauma source scope than in the active adult-male abdominal-pain model. That is a useful development finding, but it does not update `e-dispo-v4.1-pas5-high-acuity-surrogate`.
 
 ## Variable Screen Outputs
 

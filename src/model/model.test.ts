@@ -7,7 +7,7 @@ import {
   type PooledEmpiricalCoefficientDraw,
 } from "../data/pooledEmpiricalCoefficientDraws"
 import { evaluateEligibility, recodeDisposition, recodeEndpoint } from "./endpoint"
-import { initialPas5Inputs } from "./aap3Acuity"
+import { calculatePas5Acuity, initialPas5Inputs } from "./aap3Acuity"
 import { runLatinHypercubeSimulation } from "./latinHypercube"
 import { logistic, predictDisposition } from "./logisticModel"
 import type { EligibilityState, ModelInputs } from "./types"
@@ -28,6 +28,14 @@ const allActiveInputs: ModelInputs = {
   ...validInputs,
   fever: "yes",
   vomiting: "yes",
+}
+
+const highAcuityInputs: ModelInputs = {
+  ...allActiveInputs,
+  pas5: {
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+  },
 }
 
 const pooledEmpiricalCoefficientDraws = parsePooledEmpiricalCoefficientDrawCsv(
@@ -76,6 +84,12 @@ function expectedJointDrawProbability(
 
   if (inputs.vomiting === "yes") {
     logit += draw.coefficients.vomiting_present
+  }
+
+  if (calculatePas5Acuity(inputs.pas5).highAcuityProxy) {
+    const coefficient = draw.coefficients.high_acuity_proxy
+    assert.equal(typeof coefficient, "number")
+    logit += coefficient
   }
 
   return logistic(logit)
@@ -273,7 +287,7 @@ test("Latin Hypercube simulation uses full coefficient draw vectors", () => {
   const heartRateBpm = 124
   const selectedDraw = selectedDrawForSingleSample(seed)
   const simulation = runLatinHypercubeSimulation(
-    allActiveInputs,
+    highAcuityInputs,
     1,
     seed,
     age,
@@ -282,7 +296,7 @@ test("Latin Hypercube simulation uses full coefficient draw vectors", () => {
   )
   const expected = expectedJointDrawProbability(
     selectedDraw,
-    allActiveInputs,
+    highAcuityInputs,
     age,
     heartRateBpm,
   )

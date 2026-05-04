@@ -1,6 +1,6 @@
 # e-dispo-v4.0 Structured Prompt Set
 
-Use this prompt set when assigning or auditing the `e-dispo-v4.0` severe-pain implementation.
+Historical prompt set. Use only when auditing the archived `e-dispo-v4.0` severe-pain implementation. The active app model is now `e-dispo-v4.1-pas5-high-acuity-surrogate`, which adds PAS-5 `high_acuity_proxy` through NHAMCS `IMMEDR` surrogate evidence.
 
 ## Prompt 1: Intent Lock
 

@@ -437,11 +437,12 @@ export function validatePooledEmpiricalModelArtifact(
   if (
     !isPooledPredictorEvidenceList(
       artifact.predictor_evidence_tiers,
-      requiredCoefficientKeys
+      requiredCoefficientKeys,
+      modelId
     )
   ) {
     issues.push(
-      "predictor_evidence_tiers must mark all promoted terms as dataset_derived."
+      "predictor_evidence_tiers must mark direct promoted terms as dataset_derived and high_acuity_proxy as dataset_derived_surrogate when v4.1 is active."
     )
   }
 
@@ -457,6 +458,12 @@ export function validatePooledEmpiricalModelArtifact(
         "e-dispo-v4.0 must list validation artifact paths for calibration, intervals, subgroup, missingness, optimism, and transportability outputs."
       )
     }
+  } else if (modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate") {
+    if (!isPas5ValidationArtifactPaths(artifact.validation_artifact_paths)) {
+      issues.push(
+        "e-dispo-v4.1 must list PAS-5 surrogate validation artifact paths including mapping, missingness, cells, coefficients, covariance, draws, calibration, leave-one-year-out, gate, and report outputs."
+      )
+    }
   } else if (
     artifact.performance_intervals !== undefined &&
     !isPooledPerformanceIntervals(artifact.performance_intervals)
@@ -464,9 +471,9 @@ export function validatePooledEmpiricalModelArtifact(
     issues.push("performance_intervals must contain valid AUROC and Brier rows when present.")
   }
 
-  if (!isPooledPredictorList(artifact.predictors, requiredCoefficientKeys)) {
+  if (!isPooledPredictorList(artifact.predictors, requiredCoefficientKeys, modelId)) {
     issues.push(
-      "predictors must contain the promoted dataset-derived coefficients with finite betas and standard errors."
+      "predictors must contain promoted coefficients with finite betas, standard errors, and required surrogate labeling."
     )
   }
 
@@ -611,9 +618,35 @@ function isPooledValidationArtifactPaths(value: unknown): boolean {
   return required.every((key) => isNonEmptyString(value[key]))
 }
 
+function isPas5ValidationArtifactPaths(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  const required = [
+    "calibration_by_decile",
+    "calibration_plot_data",
+    "pas5_calibration",
+    "pas5_cell_counts",
+    "pas5_coefficients",
+    "pas5_covariance",
+    "pas5_decile_calibration",
+    "pas5_draws_app",
+    "pas5_draws_long",
+    "pas5_gate_decision",
+    "pas5_leave_one_year_out",
+    "pas5_mapping",
+    "pas5_missingness",
+    "pas5_report",
+  ]
+
+  return required.every((key) => isNonEmptyString(value[key]))
+}
+
 function isPooledPredictorEvidenceList(
   value: unknown,
-  requiredCoefficientKeys: readonly PooledCoefficientKey[]
+  requiredCoefficientKeys: readonly PooledCoefficientKey[],
+  modelId: unknown
 ): value is PooledEmpiricalModelArtifact["predictor_evidence_tiers"] {
   if (!Array.isArray(value)) {
     return false
@@ -643,7 +676,8 @@ function isPooledPredictorEvidenceList(
     return (
       keySet.has(key) &&
       isRecord(match) &&
-      match.evidence_tier === "dataset_derived" &&
+      match.evidence_tier === expectedEvidenceTier(key, modelId) &&
+      isValidSurrogateMetadata(match, key, modelId) &&
       match.blockers === ""
     )
   })
@@ -651,7 +685,8 @@ function isPooledPredictorEvidenceList(
 
 function isPooledPredictorList(
   value: unknown,
-  requiredCoefficientKeys: readonly PooledCoefficientKey[]
+  requiredCoefficientKeys: readonly PooledCoefficientKey[],
+  modelId: unknown
 ): value is PooledEmpiricalModelArtifact["predictors"] {
   if (!Array.isArray(value)) {
     return false
@@ -681,11 +716,46 @@ function isPooledPredictorList(
       isFiniteNumber(match.center_beta) &&
       isNonNegativeNumber(match.se_or_sd) &&
       match.distribution === "normal_approximation_exploratory" &&
-      match.evidence_tier === "dataset_derived" &&
+      match.evidence_tier === expectedEvidenceTier(key, modelId) &&
       match.source === "NHAMCS_2018_2022_POOLED" &&
-      isNonEmptyString(match.limitation_note)
+      isNonEmptyString(match.limitation_note) &&
+      isValidSurrogateMetadata(match, key, modelId)
     )
   })
+}
+
+function expectedEvidenceTier(
+  key: PooledCoefficientKey,
+  modelId: unknown
+): "dataset_derived" | "dataset_derived_surrogate" {
+  if (
+    modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate" &&
+    key === "high_acuity_proxy"
+  ) {
+    return "dataset_derived_surrogate"
+  }
+
+  return "dataset_derived"
+}
+
+function isValidSurrogateMetadata(
+  row: Record<string, unknown>,
+  key: PooledCoefficientKey,
+  modelId: unknown
+): boolean {
+  const isSurrogate =
+    modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate" &&
+    key === "high_acuity_proxy"
+
+  if (!isSurrogate) {
+    return row.surrogate_source === undefined && row.surrogate_limitation === undefined
+  }
+
+  return (
+    row.surrogate_source === "NHAMCS_IMMEDR" &&
+    row.surrogate_limitation ===
+      "Direct PAS-5 patient answers are not observed in NHAMCS."
+  )
 }
 
 function pooledCoefficientKey(
