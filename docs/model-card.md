@@ -8,7 +8,7 @@ The app does not diagnose disease, advise triage, recommend treatment, or tell a
 
 The primary app flow is intentionally lean. Supporting validation, data-readiness, reporting, bias, QA, and source material live in the in-app Documentation section for instructors and reviewers.
 
-The repo now builds a separate `general-E-Dispo-model-v1-sex-adjusted` public demo for all-sex/all-age non-trauma NHAMCS records. That general demo is parallel to this adult-male abdominal-pain model, not a replacement, and does not establish external validation, transportability, or clinical-use evidence.
+The repo now builds a separate home-facing `general-E-Dispo-home-v1` public demo for all-sex/all-age non-trauma NHAMCS records. It uses the same PAS-5 high-acuity proxy behavior as this model, excludes transfer-in context and raw acuity dropdowns, and uses `general-E-Dispo-home-v1-measured-sbp` only when an actual measured SBP is supplied. That general demo is parallel to this adult-male abdominal-pain model, not a replacement, and does not establish external validation, transportability, clinical-use evidence, or medical advice.
 
 ## Population
 

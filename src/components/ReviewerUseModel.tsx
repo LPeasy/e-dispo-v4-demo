@@ -31,19 +31,12 @@ import { AgeInputField, BinaryField, PageHeader, ReadinessRow, SimulationCountTo
 import { Pas5AcuityInput } from "@/components/Pas5AcuityInput";
 import type { ReadinessState, SimulationCount } from "@/appTypes";
 import { deriveAgeBand, isPainSeverity, painOptions } from "@/appUtils";
-import {
-  generalAcuityOptions,
-  generalArrivalTransferOptions,
-  generalOptionLabel,
-  generalSexOptions,
-} from "@/data/generalEDispoModel";
-import type { Pas5Inputs } from "@/model/aap3Acuity";
+import { generalOptionLabel, generalSexOptions } from "@/data/generalEDispoModel";
+import { calculatePas5Acuity, type Pas5Inputs } from "@/model/aap3Acuity";
 import { hypotensionBurdenFromSbp } from "@/model/generalEDispoPrediction";
 import { tachycardiaBurdenFromHeartRate } from "@/model/pooledEmpiricalPrediction";
 import type {
   BinarySymptom,
-  GeneralAcuityCode,
-  GeneralArrivalTransferContext,
   GeneralSex,
   PainSeverity,
 } from "@/model/types";
@@ -316,10 +309,8 @@ export function GeneralUseModelPage({
   setAge,
   sex,
   setSex,
-  acuityCode,
-  setAcuityCode,
-  arrivalTransferContext,
-  setArrivalTransferContext,
+  pas5,
+  setPas5,
   fever,
   setFever,
   heartRateText,
@@ -338,10 +329,8 @@ export function GeneralUseModelPage({
   setAge: (age: number) => void;
   sex: GeneralSex;
   setSex: (value: GeneralSex) => void;
-  acuityCode: GeneralAcuityCode;
-  setAcuityCode: (value: GeneralAcuityCode) => void;
-  arrivalTransferContext: GeneralArrivalTransferContext;
-  setArrivalTransferContext: (value: GeneralArrivalTransferContext) => void;
+  pas5: Pas5Inputs;
+  setPas5: (value: Pas5Inputs) => void;
   fever: Exclude<BinarySymptom, "unknown">;
   setFever: (value: Exclude<BinarySymptom, "unknown">) => void;
   heartRateText: string;
@@ -362,13 +351,14 @@ export function GeneralUseModelPage({
     systolicBloodPressure === null
       ? null
       : hypotensionBurdenFromSbp(systolicBloodPressure);
+  const pas5Result = calculatePas5Acuity(pas5);
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         icon={Calculator}
         title="Use the General Model"
-        description="Enter the prespecified inputs for general-E-Dispo-model-v1-sex-adjusted, a separate all-sex/all-age non-trauma NHAMCS educational model."
+        description="Enter the prespecified inputs for general-E-Dispo-home-v1, a separate home-facing all-sex/all-age non-trauma NHAMCS educational model."
       />
       <Alert>
         <Info />
@@ -384,8 +374,9 @@ export function GeneralUseModelPage({
           <CardHeader>
             <CardTitle>General model inputs</CardTitle>
             <CardDescription>
-              The sex-adjusted general model uses age, sex, acuity, arrival
-              transfer context, fever, heart rate, and systolic blood pressure.
+              The home-facing general model uses age, sex, PAS-5 high-acuity
+              proxy status, fever, and heart rate. Measured SBP is optional and
+              activates a separate measured-SBP branch.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -418,22 +409,6 @@ export function GeneralUseModelPage({
                 />
               </div>
               <div className="grid grid-cols-2 gap-5 max-[860px]:grid-cols-1">
-                <GeneralSelectField
-                  id="general-acuity"
-                  label="Triage acuity"
-                  value={acuityCode}
-                  onChange={setAcuityCode}
-                  options={generalAcuityOptions}
-                />
-                <GeneralSelectField
-                  id="general-arrival-transfer"
-                  label="Arrival transfer context"
-                  value={arrivalTransferContext}
-                  onChange={setArrivalTransferContext}
-                  options={generalArrivalTransferOptions}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-5 max-[720px]:grid-cols-1">
                 <Field>
                   <FieldLabel htmlFor="general-hr-input">
                     Observed heart rate
@@ -464,9 +439,16 @@ export function GeneralUseModelPage({
                     .
                   </FieldDescription>
                 </Field>
+              </div>
+              <Pas5AcuityInput
+                value={pas5}
+                onChange={setPas5}
+                idPrefix="general-pas5"
+              />
+              <div className="grid grid-cols-2 gap-5 max-[720px]:grid-cols-1">
                 <Field>
                   <FieldLabel htmlFor="general-sbp-input">
-                    Observed systolic blood pressure
+                    Measured systolic blood pressure (optional)
                   </FieldLabel>
                   <div className="flex gap-2">
                     <input
@@ -488,10 +470,11 @@ export function GeneralUseModelPage({
                     </Button>
                   </div>
                   <FieldDescription>
-                    hypotension_burden = max(100 - SBP, 0) / 10. Current
-                    burden:{" "}
+                    Leave blank for the default no-SBP branch. If supplied, SBP
+                    must be measured, not guessed. hypotension_burden =
+                    max(100 - SBP, 0) / 10. Current burden:{" "}
                     {hypotensionBurden === null
-                      ? "pending"
+                      ? "not used"
                       : hypotensionBurden.toFixed(2)}
                     .
                   </FieldDescription>
@@ -515,8 +498,9 @@ export function GeneralUseModelPage({
           <CardHeader>
             <CardTitle>Readiness</CardTitle>
             <CardDescription>
-              Unknown and blank source levels are explicit selectable levels.
-              Missing vitals still block prediction.
+              PAS-5 is required and uses the same scoring guardrails as the
+              abdominal-pain model. Missing HR blocks prediction; missing SBP
+              uses the default branch.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -531,17 +515,9 @@ export function GeneralUseModelPage({
               detail={generalOptionLabel(generalSexOptions, sex)}
             />
             <ReadinessRow
-              label="Acuity"
+              label="PAS-5"
               ready={true}
-              detail={generalOptionLabel(generalAcuityOptions, acuityCode)}
-            />
-            <ReadinessRow
-              label="Arrival context"
-              ready={true}
-              detail={generalOptionLabel(
-                generalArrivalTransferOptions,
-                arrivalTransferContext,
-              )}
+              detail={`${pas5Result.score}/15 ${pas5Result.acuityClass}; high-acuity proxy ${pas5Result.highAcuityProxy ? "active" : "inactive"}`}
             />
             <ReadinessRow
               label="Heart rate"
@@ -552,10 +528,10 @@ export function GeneralUseModelPage({
             />
             <ReadinessRow
               label="SBP"
-              ready={systolicBloodPressure !== null}
+              ready={true}
               detail={
                 systolicBloodPressure === null
-                  ? "Required"
+                  ? "Optional; default branch"
                   : `${systolicBloodPressure} mmHg`
               }
             />
@@ -571,7 +547,7 @@ export function GeneralUseModelPage({
             ) : (
               <div className="rounded-lg border border-border bg-background p-4 text-sm leading-6 text-muted-foreground">
                 Inputs are ready. Choose Run model to calculate the general
-                source-scope estimate and build the range chart.
+                home-facing estimate and build the range chart.
               </div>
             )}
             <Button
@@ -595,19 +571,19 @@ export function GeneralUseModelPage({
         <CardContent className="grid grid-cols-2 gap-3 text-sm leading-6 max-[760px]:grid-cols-1">
           <ReviewerCandidateField
             label="Included"
-            value="Pre-disposition age, sex, triage acuity, transfer-in context, fever, HR, and SBP."
+            value="Pre-disposition age, sex, PAS-5 high-acuity proxy, fever, and HR. Measured SBP is optional through a separate branch."
           />
           <ReviewerCandidateField
             label="Not included"
-            value="Race/ethnicity, payer, region, MSA, pain, vomiting, diagnosis, treatment, imaging, medications, wait time, length of visit, and disposition-derived fields."
+            value="Transfer-in context, race/ethnicity, payer, region, MSA, pain, vomiting, diagnosis, treatment, imaging, medications, wait time, length of visit, and disposition-derived fields."
           />
           <ReviewerCandidateField
-            label="Sex caveat"
-            value="Sex is presentation-available but fairness-sensitive. It is included here because you chose to publish the sex-adjusted sensitivity as a separate runnable general model."
+            label="SBP caveat"
+            value="SBP must be measured, not guessed. Blank SBP uses the no-SBP default branch."
           />
           <ReviewerCandidateField
             label="Scope"
-            value="All-sex/all-age NHAMCS non-trauma source-scope model. This is not external validation or transportability evidence."
+            value="Home-facing all-sex/all-age NHAMCS non-trauma model. This is not external validation or transportability evidence."
             emphasized
           />
         </CardContent>

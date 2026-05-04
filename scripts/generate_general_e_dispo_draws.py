@@ -141,7 +141,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("src/data/general-e-dispo-coefficient-draws.csv"),
+        default=Path("outputs/nhamcs_pooled/general_e_dispo_model_v1_plus_sex_draws_app.csv"),
     )
     args = parser.parse_args()
 

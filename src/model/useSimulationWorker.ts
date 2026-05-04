@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { MutableRefObject } from "react"
-import { GENERAL_E_DISPO_PUBLIC_MODEL_ID } from "@/data/generalEDispoModel"
+import { isGeneralEDispoModelId } from "@/data/generalEDispoModel"
 import { modelMetadata } from "./modelParameters"
 import {
   inputHashForSimulation,
@@ -75,7 +75,7 @@ export function useSimulationWorker(
   generalInputs?: GeneralModelInputs
 ): SimulationWorkerState {
   const simulationSeed =
-    modelId === GENERAL_E_DISPO_PUBLIC_MODEL_ID ? 20260429 : modelMetadata.seed
+    isGeneralEDispoModelId(modelId) ? 20260504 : modelMetadata.seed
   const [state, setState] = useState<SimulationWorkerState>(initialState)
   const workerRef = useRef<Worker | null>(null)
   const requestIdRef = useRef(0)

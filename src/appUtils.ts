@@ -7,6 +7,7 @@ import type {
 } from "@/model/types";
 import type { ReadinessState, SimulationCount } from "@/appTypes";
 import { pas5Questions } from "@/model/aap3Acuity";
+import { generalModelIdForInputs } from "@/data/generalEDispoModel";
 
 export const simulationCounts = [1000, 10000, 100000] as const;
 export const painOptions: PainSeverity[] = ["mild", "moderate", "severe"];
@@ -51,13 +52,6 @@ export function buildGeneralReadinessState(
     };
   }
 
-  if (generalInputs.systolicBloodPressure === null) {
-    return {
-      canRun: false,
-      error: "Observed SBP is required for the general model.",
-    };
-  }
-
   return { canRun: true, error: null };
 }
 
@@ -83,11 +77,10 @@ export function buildGeneralModelRunKey(
   sampleCount: SimulationCount,
 ): string {
   return [
-    "general-E-Dispo-model-v1-sex-adjusted",
+    generalModelIdForInputs(generalInputs),
     generalInputs.age,
     generalInputs.sex,
-    generalInputs.acuityCode,
-    generalInputs.arrivalTransferContext,
+    ...pas5Questions.map((question) => generalInputs.pas5[question.id]),
     generalInputs.fever,
     generalInputs.heartRateBpm ?? "missing_hr",
     generalInputs.systolicBloodPressure ?? "missing_sbp",

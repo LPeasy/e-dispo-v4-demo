@@ -15,6 +15,7 @@ Is the active reduced empirical model clear, bounded, and useful for education, 
 - A separate all-sex/all-age `e-dispo-v4.1-full-source-nontrauma-admit` candidate track exists for reviewer/development work only; it is not the active app model.
 - `general-E-Dispo-model-v1` is a newer parallel all-sex/all-age non-trauma model artifact using age, acuity, arrival-transfer context, fever/temp, tachycardia burden, and hypotension burden. It is not an app model and does not replace the active adult-male abdominal-pain v4.1 model.
 - `general-E-Dispo-model-v1-plus-sex` is a prespecified sensitivity artifact only. It improves sex subgroup calibration inside NHAMCS but is not promoted because the overall performance gain is negligible and optimism-corrected Brier is slightly worse.
+- The public general demo now uses `general-E-Dispo-home-v1`, with `general-E-Dispo-home-v1-measured-sbp` selected only when actual measured SBP is supplied. Transfer-in context and raw acuity dropdowns are removed from the public general formula, PAS-5 `high_acuity_proxy` is used, and blank SBP no longer blocks prediction.
 - No clinical validity, diagnosis, triage, treatment, discharge-safety, or medical-advice claim is made.
 
 ## Recommended Review Order
@@ -27,12 +28,13 @@ Is the active reduced empirical model clear, bounded, and useful for education, 
 6. Review `full-source-scope-screen.md`.
 7. Review `full-source-nontrauma-admit-candidate.md`.
 8. Review `general-e-dispo-model-v1.md`.
-9. Review `predictive-power-usability-review.md`.
-10. Review `pas5-acuity-candidate-screen.md`.
-11. Review `nausea-candidate-screen.md`.
-12. Review `sensitivity-report.md`.
-13. Review `deficiency-review-next-phase.md`.
-14. Complete `model-reviewer-checklist.md`.
+9. Review `general-e-dispo-home-v1.md`.
+10. Review `predictive-power-usability-review.md`.
+11. Review `pas5-acuity-candidate-screen.md`.
+12. Review `nausea-candidate-screen.md`.
+13. Review `sensitivity-report.md`.
+14. Review `deficiency-review-next-phase.md`.
+15. Complete `model-reviewer-checklist.md`.
 
 ## Key Files
 
@@ -44,6 +46,7 @@ Is the active reduced empirical model clear, bounded, and useful for education, 
 - `full-source-scope-screen.md`: fixed-coefficient NHAMCS endpoint-only and non-trauma source-scope screens; not external validation.
 - `full-source-nontrauma-admit-candidate.md`: separate broader non-trauma candidate model and analytic/raw variable screen; not an active model update.
 - `general-e-dispo-model-v1.md`: separate clean pre-disposition all-sex/all-age non-trauma model artifact; not active app behavior.
+- `general-e-dispo-home-v1.md`: public home-facing general model revision; transfer-in context removed and SBP made optional through a measured-SBP branch.
 - `pas5-acuity-candidate-screen.md`: PAS-5 high-acuity proxy surrogate evidence and activation boundary.
 - `nausea-candidate-screen.md`: narrow NHAMCS-only candidate-variable screen showing why nausea-alone is not promoted.
 - `empirical-model-development-protocol.md`: work order for NHAMCS/MIMIC cohort fitting, pain monotonicity testing, covariance/posterior draws, and adoption gates.
@@ -53,4 +56,4 @@ Is the active reduced empirical model clear, bounded, and useful for education, 
 
 ## Lay Summary
 
-The app works as a class demonstration with an active reduced empirical model. The model has moderate discrimination and a modest Brier improvement over the same-subset base refit after adding PAS-5 `high_acuity_proxy`. The PAS-5 term is surrogate-derived from NHAMCS `IMMEDR`; NHAMCS does not contain direct patient PAS-5 answers, so this is not direct patient self-assessment validation. Nausea-alone was screened as the only additional user-feasible NHAMCS symptom in scope and was not promoted. Full-source NHAMCS screens now show fixed-coefficient behavior beyond the active cohort, but they are source-scope stress tests, not external validation or a broader-use claim. A separate full-source non-trauma candidate model and variable screen now exist to guide future development without changing the active app model. `general-E-Dispo-model-v1` is the cleaner parallel general non-trauma model artifact: AUROC 0.817657, Brier 0.104806, 1,000-replicate fixed-prediction intervals, and 200-refit optimism correction, all internal to NHAMCS. The plus-sex sensitivity model reduces the apparent sex subgroup calibration gap but is not promoted because AUROC/Brier gains are tiny and optimism-corrected Brier worsens slightly. The reviewer should decide whether the active model is enough for the educational app and what validation should be required before any broader replacement model, SBP, sex, or serial-vital concept ever affects P(admit).
+The app works as a class demonstration with an active reduced empirical model. The model has moderate discrimination and a modest Brier improvement over the same-subset base refit after adding PAS-5 `high_acuity_proxy`. The PAS-5 term is surrogate-derived from NHAMCS `IMMEDR`; NHAMCS does not contain direct patient PAS-5 answers, so this is not direct patient self-assessment validation. Nausea-alone was screened as the only additional user-feasible NHAMCS symptom in scope and was not promoted. Full-source NHAMCS screens now show fixed-coefficient behavior beyond the active cohort, but they are source-scope stress tests, not external validation or a broader-use claim. A separate full-source non-trauma candidate model and variable screen now exist to guide future development without changing the active app model. `general-E-Dispo-model-v1` is the cleaner parallel source-scope general non-trauma model artifact, and `general-E-Dispo-model-v1-plus-sex` remains a sensitivity artifact. The public general demo now uses the home-facing `general-E-Dispo-home-v1` default with PAS-5 `high_acuity_proxy`: AUROC 0.811803, Brier 0.101883, 1,000-replicate fixed-prediction intervals, and 200-refit optimism correction, all internal to NHAMCS. The optional measured-SBP branch has lower AUROC and higher Brier than the no-SBP default, so it is only a measured-vital branch, not a requirement to guess SBP. The reviewer should decide what validation should be required before any broader replacement model, SBP, sex, or serial-vital concept ever affects patient-facing interpretation.

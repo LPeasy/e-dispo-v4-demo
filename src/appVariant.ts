@@ -29,10 +29,10 @@ export const appVariantConfig: AppVariantConfig =
         variant: "general_e_dispo",
         modelId: GENERAL_E_DISPO_PUBLIC_MODEL_ID,
         siteTitle: "General E-Dispo",
-        shortModelLabel: "general-E-Dispo v1 sex-adjusted",
+        shortModelLabel: "general-E-Dispo home v1",
         publicPath: "general-e-dispo-demo",
         scope:
-          "All-sex/all-age non-trauma NHAMCS educational/statistical model.",
+          "Home-facing all-sex/all-age non-trauma NHAMCS educational/statistical model.",
       }
     : {
         variant: "e_dispo_v4",

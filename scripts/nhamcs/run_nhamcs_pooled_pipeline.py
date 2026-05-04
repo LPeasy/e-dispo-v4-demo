@@ -35,6 +35,9 @@ DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT = Path(
 DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT = Path(
     "scripts/nhamcs/nhamcs_general_e_dispo_model_v1_plus_sex.R"
 )
+DEFAULT_GENERAL_E_DISPO_HOME_V1_SCRIPT = Path(
+    "scripts/nhamcs/nhamcs_general_e_dispo_home_v1.R"
+)
 DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT = Path(
     "scripts/nhamcs/full_source_nontrauma_variable_screen.py"
 )
@@ -239,6 +242,14 @@ def run_pooled_fit(
         )
         if plus_sex_result.returncode != 0:
             write_general_e_dispo_model_v1_plus_sex_blocker(output_dir, plus_sex_result)
+            return 2 if survey_mode == "require" else 0
+        home_result = run_general_e_dispo_home_v1(
+            full_source_nontrauma_path,
+            output_dir,
+            survey_status["rscript_path"],
+        )
+        if home_result.returncode != 0:
+            write_general_e_dispo_home_v1_blocker(output_dir, home_result)
             return 2 if survey_mode == "require" else 0
         variable_screen_result = run_full_source_nontrauma_variable_screen(
             config_path,
@@ -538,6 +549,35 @@ def run_general_e_dispo_model_v1_plus_sex(
     )
 
 
+def run_general_e_dispo_home_v1(
+    full_source_nontrauma_path: Path,
+    output_dir: Path,
+    rscript: str,
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_GENERAL_E_DISPO_HOME_V1_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[
+                rscript,
+                str(DEFAULT_GENERAL_E_DISPO_HOME_V1_SCRIPT),
+                str(full_source_nontrauma_path),
+                str(output_dir),
+            ],
+            returncode=2,
+            stdout="",
+            stderr=(
+                "General E-Dispo home-facing v1 script is missing: "
+                f"{DEFAULT_GENERAL_E_DISPO_HOME_V1_SCRIPT}"
+            ),
+        )
+    return subprocess.run(
+        [rscript, str(DEFAULT_GENERAL_E_DISPO_HOME_V1_SCRIPT), str(full_source_nontrauma_path), str(output_dir)],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+        check=False,
+    )
+
+
 def run_full_source_nontrauma_variable_screen(
     config_path: Path,
     full_source_nontrauma_path: Path,
@@ -751,6 +791,29 @@ def write_general_e_dispo_model_v1_plus_sex_blocker(
     )
 
 
+def write_general_e_dispo_home_v1_blocker(
+    output_dir: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "general_e_dispo_home_v1_blocker_report.md",
+        source="NHAMCS general-E-Dispo home-facing optional-SBP artifact",
+        blockers=["general-E-Dispo-home-v1 optional-SBP artifact did not complete."],
+        outputs_written=[
+            str(output_dir / "general_e_dispo_home_v1_coefficients.csv"),
+            str(output_dir / "general_e_dispo_home_v1_performance.csv"),
+            str(output_dir / "general_e_dispo_home_v1_measured_sbp_coefficients.csv"),
+            str(output_dir / "general_e_dispo_home_v1_measured_sbp_performance.csv"),
+            str(output_dir / "general_e_dispo_home_v1_sbp_optional_comparison.csv"),
+        ],
+        calibration_or_fitting_blockers=[
+            result.stdout.strip()[-2000:],
+            result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the home-facing general-model fitting error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
 def write_full_source_nontrauma_variable_screen_blocker(
     output_dir: Path,
     result: subprocess.CompletedProcess[str],
@@ -886,6 +949,27 @@ def write_pipeline_summary(output_dir: Path, cohort_path: Path, years: list[int]
         ),
         "general_e_dispo_model_v1_sex_sensitivity_comparison_status": read_status_set(
             output_dir / "general_e_dispo_model_v1_sex_sensitivity_comparison.csv"
+        ),
+        "general_e_dispo_home_v1_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_performance.csv"
+        ),
+        "general_e_dispo_home_v1_interval_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_performance_intervals.csv"
+        ),
+        "general_e_dispo_home_v1_optimism_correction_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_optimism_corrected_performance.csv"
+        ),
+        "general_e_dispo_home_v1_measured_sbp_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_measured_sbp_performance.csv"
+        ),
+        "general_e_dispo_home_v1_measured_sbp_interval_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_measured_sbp_performance_intervals.csv"
+        ),
+        "general_e_dispo_home_v1_measured_sbp_optimism_correction_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_measured_sbp_optimism_corrected_performance.csv"
+        ),
+        "general_e_dispo_home_v1_sbp_optional_comparison_status": read_status_set(
+            output_dir / "general_e_dispo_home_v1_sbp_optional_comparison.csv"
         ),
         "full_source_nontrauma_variable_screen_status": read_multi_status_set(
             [

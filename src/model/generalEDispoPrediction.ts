@@ -1,22 +1,19 @@
 import {
-  GENERAL_E_DISPO_PUBLIC_MODEL_ID,
   generalCoefficientByKey,
+  generalModelForInputs,
+  generalModelIdForInputs,
 } from "@/data/generalEDispoModel"
+import { calculatePas5Acuity, initialPas5Inputs } from "./aap3Acuity"
 import { clampProbability, logistic } from "./logisticModel"
 import {
   tachycardiaBurdenFromHeartRate,
 } from "./pooledEmpiricalPrediction"
 import type {
-  GeneralAcuityCode,
-  GeneralArrivalTransferContext,
   GeneralModelInputs,
   LogisticTerm,
   PredictionResult,
+  RunnableModelId,
 } from "./types"
-
-const referenceAcuity: GeneralAcuityCode = "urgent"
-const referenceArrivalTransferContext: GeneralArrivalTransferContext =
-  "no_not_transferred_from_hospital_or_urgent_care"
 
 export function predictGeneralEDispoDisposition(
   inputs: GeneralModelInputs
@@ -38,57 +35,61 @@ export function activeGeneralEDispoTermsForInputs(
 ): LogisticTerm[] {
   validateGeneralInputs(inputs)
 
-  const ageCoefficient = generalCoefficientByKey("age_centered_40")
-  const tachycardiaCoefficient = generalCoefficientByKey("tachycardia_burden")
-  const hypotensionCoefficient = generalCoefficientByKey("hypotension_burden")
+  const model = generalModelForInputs(inputs)
+  const ageCoefficient = generalCoefficientByKey(
+    "age_centered_40",
+    model.modelId
+  )
+  const tachycardiaCoefficient = generalCoefficientByKey(
+    "tachycardia_burden",
+    model.modelId
+  )
   const ageCentered = inputs.age - 40
   const tachycardiaBurden = tachycardiaBurdenFromHeartRate(
     inputs.heartRateBpm as number
   )
-  const hypotensionBurden = hypotensionBurdenFromSbp(
-    inputs.systolicBloodPressure as number
-  )
+  const pas5 = calculatePas5Acuity(inputs.pas5)
   const terms: LogisticTerm[] = [
-    termFromGeneralCoefficient("intercept"),
+    termFromGeneralCoefficient("intercept", model.modelId),
     {
-      ...termFromGeneralCoefficient("age_centered_40"),
+      ...termFromGeneralCoefficient("age_centered_40", model.modelId),
       mean: ageCoefficient.beta * ageCentered,
       standardError: ageCoefficient.standardError * Math.abs(ageCentered),
     },
     {
-      ...termFromGeneralCoefficient("tachycardia_burden"),
+      ...termFromGeneralCoefficient("tachycardia_burden", model.modelId),
       mean: tachycardiaCoefficient.beta * tachycardiaBurden,
       standardError:
         tachycardiaCoefficient.standardError * Math.abs(tachycardiaBurden),
     },
-    {
-      ...termFromGeneralCoefficient("hypotension_burden"),
-      mean: hypotensionCoefficient.beta * hypotensionBurden,
-      standardError:
-        hypotensionCoefficient.standardError * Math.abs(hypotensionBurden),
-    },
   ]
 
   if (inputs.sex === "2") {
-    terms.push(termFromGeneralCoefficient("sex_2"))
+    terms.push(termFromGeneralCoefficient("sex_2", model.modelId))
   }
 
-  if (inputs.acuityCode !== referenceAcuity) {
-    terms.push(
-      termFromGeneralCoefficient(`acuity_code_${inputs.acuityCode}`)
-    )
+  if (pas5.highAcuityProxy) {
+    terms.push(termFromGeneralCoefficient("high_acuity_proxy", model.modelId))
   }
 
-  if (inputs.arrivalTransferContext !== referenceArrivalTransferContext) {
-    terms.push(
-      termFromGeneralCoefficient(
-        `arrival_transfer_context_${inputs.arrivalTransferContext}`
-      )
+  if (inputs.systolicBloodPressure !== null) {
+    const hypotensionCoefficient = generalCoefficientByKey(
+      "hypotension_burden",
+      model.modelId
     )
+    const hypotensionBurden = hypotensionBurdenFromSbp(
+      inputs.systolicBloodPressure
+    )
+    terms.push({
+      ...termFromGeneralCoefficient("hypotension_burden", model.modelId),
+      mean: hypotensionCoefficient.beta * hypotensionBurden,
+      standardError:
+        hypotensionCoefficient.standardError * Math.abs(hypotensionBurden),
+    })
   }
 
   if (inputs.fever === "yes") {
-    terms.push(termFromGeneralCoefficient("fever_or_temp"))
+    terms.push(termFromGeneralCoefficient("fever_or_temp", model.modelId))
   }
 
   return terms
@@ -104,8 +105,17 @@ export function hypotensionBurdenFromSbp(
   return Math.max(100 - systolicBloodPressure, 0) / 10
 }
 
-export function generalModelIdForDisplay(): typeof GENERAL_E_DISPO_PUBLIC_MODEL_ID {
-  return GENERAL_E_DISPO_PUBLIC_MODEL_ID
+export function generalModelIdForDisplay(
+  inputs?: GeneralModelInputs
+): RunnableModelId {
+  return inputs ? generalModelIdForInputs(inputs) : generalModelIdForInputs({
+    age: 40,
+    sex: "1",
+    pas5: initialPas5Inputs,
+    fever: "no",
+    heartRateBpm: 88,
+    systolicBloodPressure: null,
+  })
 }
 
 function validateGeneralInputs(inputs: GeneralModelInputs) {
@@ -118,10 +128,10 @@ function validateGeneralInputs(inputs: GeneralModelInputs) {
   }
 
   if (
-    inputs.systolicBloodPressure === null ||
+    inputs.systolicBloodPressure !== null &&
     !Number.isFinite(inputs.systolicBloodPressure)
   ) {
-    throw new Error("Observed systolic blood pressure is required for the general model.")
+    throw new Error("Systolic blood pressure must be finite when supplied.")
   }
 
   if (inputs.fever !== "yes" && inputs.fever !== "no") {
@@ -130,9 +140,10 @@ function validateGeneralInputs(inputs: GeneralModelInputs) {
 }
 
 function termFromGeneralCoefficient(
-  key: Parameters<typeof generalCoefficientByKey>[0]
+  key: Parameters<typeof generalCoefficientByKey>[0],
+  modelId: Parameters<typeof generalCoefficientByKey>[1]
 ): LogisticTerm {
-  const coefficient = generalCoefficientByKey(key)
+  const coefficient = generalCoefficientByKey(key, modelId)
 
   return {
     key,
