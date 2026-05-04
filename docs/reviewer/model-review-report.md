@@ -138,7 +138,7 @@ P(treat_and_release) = 1 - P(admit)
 What that means:
 
 - Active coefficients are exact age, severe pain status, fever/temperature proxy, vomiting, and tachycardia burden.
-- Excluded worksheet inputs and AAP-3 do not change P(admit).
+- Excluded worksheet inputs and PAS-5 do not change `e-dispo-v4.0` P(admit).
 - The model adds the active effects together.
 - The logistic function converts the total into a probability between 0 and 1.
 - The release-home probability is calculated as the complement of admission probability, but only after the binary endpoint rules are applied.

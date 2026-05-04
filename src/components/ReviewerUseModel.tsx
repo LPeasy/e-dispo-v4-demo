@@ -21,11 +21,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { AgeInputField, BinaryField, PageHeader, ReadinessRow, SimulationCountToggle } from "@/components/AppShared";
+import { Pas5AcuityInput } from "@/components/Pas5AcuityInput";
 import type { ReadinessState, SimulationCount } from "@/appTypes";
 import { deriveAgeBand, isPainSeverity, painOptions } from "@/appUtils";
+import type { Pas5Inputs } from "@/model/aap3Acuity";
 import { tachycardiaBurdenFromHeartRate } from "@/model/pooledEmpiricalPrediction";
 import type { BinarySymptom, PainSeverity } from "@/model/types";
-import { valueLabels } from "@/model/worksheet";
+import { formatPas5Inputs, valueLabels } from "@/model/worksheet";
 
 type FutureCandidate = {
   title: string;
@@ -37,12 +39,12 @@ type FutureCandidate = {
 
 const futureCandidates: FutureCandidate[] = [
   {
-    title: "AAP-3 acuity-proxy validation concept",
-    status: "prototype proxy",
+    title: "PAS-5 patient-perceived acuity proxy",
+    status: "candidate surrogate screen",
     whyInactive:
-      "AAP-3 is a reviewer-only validation concept and is not an active predictor in e-dispo-v4.0.",
+      "PAS-5 is collected as a five-question self-report proxy and is not an active predictor in e-dispo-v4.0.",
     reviewNeed:
-      "Future work would need comparison against real acuity fields such as NHAMCS IMMEDR or MIMIC acuity.",
+      "The v4.1 candidate must pass the prespecified NHAMCS IMMEDR surrogate evidence gate before activation.",
     currentEffect: "Does not affect current P(admit).",
   },
   {
@@ -95,6 +97,8 @@ export function UseModelPage({
   setFever,
   vomiting,
   setVomiting,
+  pas5,
+  setPas5,
   sampleCount,
   setSampleCount,
   readinessState,
@@ -112,6 +116,8 @@ export function UseModelPage({
   setFever: (value: BinarySymptom) => void;
   vomiting: BinarySymptom;
   setVomiting: (value: BinarySymptom) => void;
+  pas5: Pas5Inputs;
+  setPas5: (value: Pas5Inputs) => void;
   sampleCount: SimulationCount;
   setSampleCount: (value: SimulationCount) => void;
   readinessState: ReadinessState;
@@ -213,6 +219,11 @@ export function UseModelPage({
                   </FieldDescription>
                 ) : null}
               </Field>
+              <Pas5AcuityInput
+                value={pas5}
+                onChange={setPas5}
+                idPrefix="reviewer-pas5"
+              />
               <FieldSet>
                 <FieldLegend>Simulation runs</FieldLegend>
                 <SimulationCountToggle
@@ -244,6 +255,11 @@ export function UseModelPage({
               label="Pain"
               ready={true}
               detail={valueLabels[painSeverity]}
+            />
+            <ReadinessRow
+              label="PAS-5"
+              ready={true}
+              detail={formatPas5Inputs(pas5)}
             />
             <ReadinessRow
               label="Heart rate"

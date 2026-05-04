@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -60,7 +59,54 @@ def test_pooled_pipeline_with_csv_fixtures() -> None:
         pooled_path = pooled_dir / "analytic_cohort_nhamcs_2018_2019.csv"
         assert pooled_path.exists()
         pooled = pd.read_csv(pooled_path)
+        full_endpoint_path = pooled_dir / "full_source_endpoint_cohort_nhamcs_2018_2019.csv"
+        full_nontrauma_path = pooled_dir / "full_source_nontrauma_cohort_nhamcs_2018_2019.csv"
+        assert full_endpoint_path.exists()
+        assert full_nontrauma_path.exists()
+        full_endpoint = pd.read_csv(full_endpoint_path)
+        full_nontrauma = pd.read_csv(full_nontrauma_path)
+        assert len(full_endpoint) > len(pooled)
+        assert len(full_nontrauma) < len(full_endpoint)
+        assert (full_endpoint["in_active_scope"].astype(str).str.lower() == "false").any()
+        assert (full_endpoint["non_trauma_flag"].astype(str).str.lower() == "false").any()
+        assert (full_nontrauma["non_trauma_flag"].astype(str).str.lower() == "true").all()
         binary = pooled[pooled["include_strict_binary"].astype(str).str.lower().isin(["true", "1"])]
+        assert {"RACERETH", "race_ethnicity", "PAYTYPER", "payer", "REGION", "region", "MSA", "msa_status"}.issubset(
+            set(pooled.columns)
+        )
+        assert {"IMMEDR", "acuity_code", "AMBTRANSFER", "arrival_transfer_context", "hypotension_burden"}.issubset(
+            set(pooled.columns)
+        )
+        assert set(pooled["race_ethnicity"].dropna()).issubset(
+            {"Non-Hispanic White", "Non-Hispanic Black", "Hispanic", "Non-Hispanic Other"}
+        )
+        assert "Unknown" in set(pooled["payer"])
+        assert "All sources of payment are blank" in set(pooled["payer"])
+        assert set(pooled["region"].dropna()).issubset({"Northeast", "Midwest", "South", "West"})
+        assert set(pooled["msa_status"].dropna()).issubset({"MSA (Metropolitan Statistical Area)", "Non-MSA"})
+        assert set(pooled["acuity_code"].dropna()).issubset(
+            {
+                "blank",
+                "unknown",
+                "no_triage_esa_conducts_triage",
+                "immediate",
+                "emergent",
+                "urgent",
+                "semi_urgent",
+                "nonurgent",
+                "no_nursing_triage_esa",
+            }
+        )
+        assert set(pooled["arrival_transfer_context"].dropna()).issubset(
+            {
+                "blank",
+                "unknown",
+                "not_applicable",
+                "yes_transferred_from_hospital_or_urgent_care",
+                "no_not_transferred_from_hospital_or_urgent_care",
+            }
+        )
+        assert "not_applicable" in set(pooled["arrival_transfer_context"])
         assert (pooled["pooled_weight"].round(8) == (pooled["PATWT"] / 2).round(8)).all()
         assert all(
             str(stratum).startswith(f"{year}_")
@@ -503,6 +549,85 @@ def test_fever_sparse_cell_validation_fixture_if_r_available() -> None:
         ].iloc[0]
         assert activation_status != "eligible_for_educational_activation"
 
+        result = subprocess.run(
+            [
+                rscript,
+                "scripts/nhamcs/nhamcs_e_dispo_v4_pain_severe_validation.R",
+                str(cohort_path),
+                str(pooled_dir),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        e_dispo_v4_outputs = [
+            "e_dispo_v4_pain_severe_coefficients.csv",
+            "e_dispo_v4_pain_severe_covariance.csv",
+            "e_dispo_v4_pain_severe_draws.csv",
+            "e_dispo_v4_pain_severe_calibration.csv",
+            "e_dispo_v4_pain_severe_calibration_by_decile.csv",
+            "e_dispo_v4_pain_severe_calibration_plot_data.csv",
+            "e_dispo_v4_pain_severe_performance_intervals.csv",
+            "e_dispo_v4_subgroup_performance.csv",
+            "e_dispo_v4_subgroup_calibration.csv",
+            "e_dispo_v4_missingness_performance.csv",
+            "e_dispo_v4_optimism_corrected_performance.csv",
+            "e_dispo_v4_transportability_track.csv",
+            "e_dispo_v4_transportability_report.md",
+            "e_dispo_v4_candidate_refinement_gate.csv",
+            "e_dispo_v4_candidate_refinement_report.md",
+            "e_dispo_v4_full_source_endpoint_screen_performance.csv",
+            "e_dispo_v4_full_source_endpoint_screen_calibration.csv",
+            "e_dispo_v4_full_source_endpoint_screen_missingness.csv",
+            "e_dispo_v4_full_source_nontrauma_screen_performance.csv",
+            "e_dispo_v4_full_source_nontrauma_screen_calibration.csv",
+            "e_dispo_v4_full_source_nontrauma_screen_missingness.csv",
+            "e_dispo_v4_full_source_scope_screen_report.md",
+            "e_dispo_v4_pain_severe_cell_counts.csv",
+            "e_dispo_v4_pain_severe_leave_one_year_out.csv",
+            "e_dispo_v4_pain_severe_validation_report.md",
+        ]
+        for filename in e_dispo_v4_outputs:
+            assert (pooled_dir / filename).exists(), filename
+        grouped_calibration = pd.read_csv(pooled_dir / "e_dispo_v4_pain_severe_calibration_by_decile.csv")
+        assert set(grouped_calibration["model_id"]) == {"e-dispo-v4.0"}
+        assert {"mean_predicted", "observed_rate", "observed_rate_ci_low", "observed_rate_ci_high"}.issubset(
+            set(grouped_calibration.columns)
+        )
+        intervals = pd.read_csv(pooled_dir / "e_dispo_v4_pain_severe_performance_intervals.csv")
+        assert set(intervals["metric"]) == {"auroc", "brier_score"}
+        assert all(intervals["method"].astype(str).str.len() > 0)
+        successful_intervals = intervals[intervals["status"] == "ok"]
+        if not successful_intervals.empty:
+            assert successful_intervals[["estimate", "ci_low", "ci_high"]].notna().all().all()
+        subgroup = pd.read_csv(pooled_dir / "e_dispo_v4_subgroup_performance.csv")
+        assert {"age_band", "pain_availability", "HR_availability", "race_ethnicity", "payer", "region", "msa_status"}.issubset(
+            set(subgroup["subgroup"])
+        )
+        for field in ["race_ethnicity", "payer", "region", "msa_status"]:
+            field_rows = subgroup[subgroup["subgroup"] == field]
+            assert "blocked_field_missing_from_pooled_analytic_cohort" not in set(field_rows["status"])
+        missingness = pd.read_csv(pooled_dir / "e_dispo_v4_missingness_performance.csv")
+        assert {"pain_availability", "HR_availability", "fever_temp_availability"}.issubset(
+            set(missingness["subgroup"])
+        )
+        optimism = pd.read_csv(pooled_dir / "e_dispo_v4_optimism_corrected_performance.csv")
+        assert {"auroc", "brier_score", "calibration_in_the_large", "calibration_slope"} == set(optimism["metric"])
+        assert all(optimism["method"] == "survey_bootstrap_refit_optimism_correction")
+        transport = pd.read_csv(pooled_dir / "e_dispo_v4_transportability_track.csv")
+        assert set(transport["source"]) == {"MIMIC_IV_ED"}
+        refinement = pd.read_csv(pooled_dir / "e_dispo_v4_candidate_refinement_gate.csv")
+        assert {"AAP-3", "tachycardia_duration", "pain_representation"}.issubset(set(refinement["candidate"]))
+        full_endpoint_screen = pd.read_csv(pooled_dir / "e_dispo_v4_full_source_endpoint_screen_performance.csv")
+        full_nontrauma_screen = pd.read_csv(pooled_dir / "e_dispo_v4_full_source_nontrauma_screen_performance.csv")
+        assert "overall" in set(full_endpoint_screen["subgroup"])
+        assert "overall" in set(full_nontrauma_screen["subgroup"])
+        assert {"active_scope_membership", "age_band_full", "sex", "abdominal_pain_flag", "non_trauma_flag"}.issubset(
+            set(full_endpoint_screen["subgroup"])
+        )
+
 
 def available_rscript_with_survey() -> str:
     candidates = [
@@ -512,10 +637,6 @@ def available_rscript_with_survey() -> str:
     ]
     for candidate in candidates:
         if not candidate:
-            continue
-        if candidate == "Rscript" and shutil.which(candidate) is None:
-            continue
-        if candidate != "Rscript" and not Path(candidate).exists():
             continue
         try:
             result = subprocess.run(
@@ -606,6 +727,14 @@ def write_csv_fixture(data_dir: Path, year: int) -> None:
             rows.append(fixture_row(i, rfv2=15250))
         else:
             rows.append(fixture_row(i))
+    rows.extend(
+        [
+            fixture_row(180, sex=2),
+            fixture_row(181, age=12),
+            fixture_row(182, rfv1=99990),
+            fixture_row(183, trauma=1),
+        ]
+    )
     frame = pd.DataFrame(rows)
     frame.to_csv(data_dir / f"ed{year}.csv", index=False)
 
@@ -653,28 +782,36 @@ def fixture_row(
     rfv3: int | None = None,
     rfv4: int | None = None,
     rfv5: int | None = None,
+    sex: int = 1,
+    age: int | None = None,
+    trauma: int = 4,
 ) -> dict[str, object]:
     admit_value = (i % 5 == 0) if admit is None else admit
     home_value = (not admit_value and i % 7 != 0 and i % 11 != 0) if home is None else home
     obs_value = (i % 7 == 0 and not admit_value and home is None) or obs
     transfer_value = (i % 11 == 0 and not admit_value and home is None) or transfer
     return {
-        "SEX": 1,
-        "AGE": 18 + (i % 47),
+        "SEX": sex,
+        "AGE": age if age is not None else 18 + (i % 47),
         "RFV1": rfv1 if rfv1 is not None else 15450 + (i % 4),
         "RFV2": rfv2 if rfv2 is not None else -9,
         "RFV3": rfv3 if rfv3 is not None else -9,
         "RFV4": rfv4 if rfv4 is not None else -9,
         "RFV5": rfv5 if rfv5 is not None else -9,
-        "INJPOISAD": 4,
+        "INJPOISAD": trauma,
         "PATWT": 1.0 + (i % 4),
         "CSTRATM": 1 + (i % 5),
         "CPSUM": 1 + (i % 7),
         "PAINSCALE": -8 if i % 19 == 0 else (-9 if i % 23 == 0 else i % 11),
         "TEMPF": temp if temp is not None else (-9 if i % 17 == 0 else (1004 if i % 5 == 0 else 986 + (i % 4))),
         "IMMEDR": -8 if i % 29 == 0 else (-9 if i % 31 == 0 else 2 + (i % 4)),
+        "AMBTRANSFER": [-9, -8, -7, 1, 2][i % 5],
         "PULSE": 998 if i % 37 == 0 else (-9 if i % 41 == 0 else 70 + (i % 50)),
         "BPSYS": -9 if i % 43 == 0 else 105 + (i % 45),
+        "RACERETH": 1 + (i % 4),
+        "PAYTYPER": [-9, -8, 1, 2, 3, 4, 5, 6, 7][i % 9],
+        "REGION": 1 + (i % 4),
+        "MSA": 1 + (i % 2),
         "ADMITHOS": 1 if admit_value else 0,
         "OBSHOS": 0,
         "NOFU": 1 if home_value else 0,

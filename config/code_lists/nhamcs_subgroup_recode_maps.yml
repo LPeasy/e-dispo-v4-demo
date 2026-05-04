@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_subgroup_recode_maps",
+  "source": "NHAMCS_2018_2022_ED_public_use_stata_labels",
+  "domain": "subgroup_validation_mapping",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "ed-disposition-web-v3/data/nhamcs/2018/ED2018-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2019/ED2019-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2020/ed2020-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2021/ed2021-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2022/ed2022-stata.zip"
+  ],
+  "fields": {
+    "RACERETH": {
+      "output": "race_ethnicity",
+      "codes": {
+        "1": "Non-Hispanic White",
+        "2": "Non-Hispanic Black",
+        "3": "Hispanic",
+        "4": "Non-Hispanic Other"
+      }
+    },
+    "PAYTYPER": {
+      "output": "payer",
+      "codes": {
+        "-9": "All sources of payment are blank",
+        "-8": "Unknown",
+        "1": "Private insurance",
+        "2": "Medicare",
+        "3": "Medicaid or CHIP or other state-based program",
+        "4": "Worker's compensation",
+        "5": "Self-pay",
+        "6": "No charge/Charity",
+        "7": "Other"
+      }
+    },
+    "REGION": {
+      "output": "region",
+      "codes": {
+        "1": "Northeast",
+        "2": "Midwest",
+        "3": "South",
+        "4": "West"
+      }
+    },
+    "MSA": {
+      "output": "msa_status",
+      "codes": {
+        "1": "MSA (Metropolitan Statistical Area)",
+        "2": "Non-MSA"
+      }
+    }
+  },
+  "notes": "Unknown and blank payer codes are preserved as explicit subgroup levels; they are not silently recoded to missing."
+}

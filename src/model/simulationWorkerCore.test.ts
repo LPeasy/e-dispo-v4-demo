@@ -10,6 +10,7 @@ import {
   pooledEmpiricalCoefficientDrawAssetUrl,
 } from "../data/pooledEmpiricalCoefficientDraws"
 import { modelMetadata } from "./modelParameters"
+import { initialPas5Inputs } from "./aap3Acuity"
 import { isCurrentSimulationResponse } from "./simulationProtocol"
 import {
   clearSimulationCache,
@@ -25,6 +26,7 @@ const validInputs: ModelInputs = {
   constantVsIntermittent: "constant",
   vomiting: "yes",
   fever: "no",
+  pas5: initialPas5Inputs,
 }
 
 const coefficientDrawCsv = readFileSync(

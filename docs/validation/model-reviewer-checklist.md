@@ -25,11 +25,11 @@ Use this checklist to review the active reduced pooled empirical educational mod
 | The empirical protocol requires covariance or posterior draws before dataset-derived simulation. | [ ] | [ ] | [ ] | |
 | Pain severity has a documented monotonicity, confounding, missingness, and transportability decision rule. | [ ] | [ ] | [ ] | |
 | NHAMCS and MIMIC are treated as derivation/calibration and replication/proxy-validation sources, not naively pooled. | [ ] | [ ] | [ ] | |
-| The UI/documentation states that broad pain region, onset/duration, pain pattern, hematemesis, acuity, SBP, prototype inputs, and AAP-3 do not affect empirical P(admit). | [ ] | [ ] | [ ] | |
+| The UI/documentation states that broad pain region, onset/duration, pain pattern, hematemesis, acuity, SBP, prototype inputs, and PAS-5 do not affect `e-dispo-v4.0` empirical P(admit). | [ ] | [ ] | [ ] | |
 | The reviewer has checked whether requiring observed pain and observed HR for `e-dispo-v4.0` is acceptable. | [ ] | [ ] | [ ] | |
 | The UI/documentation states that HR missing is not normal HR and withholds the `e-dispo-v4.0` empirical estimate. | [ ] | [ ] | [ ] | |
 | Unknown fever/vomiting wording does not imply confirmed absence. | [ ] | [ ] | [ ] | |
-| AAP-3 is labeled `prototype_acuity_proxy`, not dataset-derived and not clinical triage. | [ ] | [ ] | [ ] | |
+| PAS-5 is labeled `patient_perceived_acuity_proxy`, not dataset-derived as direct patient self-assessment and not advice. | [ ] | [ ] | [ ] | |
 | Sensitivity A and Sensitivity B are clearly report-only. | [ ] | [ ] | [ ] | |
 | Limitations are visible and understandable to a non-technical reviewer. | [ ] | [ ] | [ ] | |
 | No document claims clinical validity or safety. | [ ] | [ ] | [ ] | |
@@ -43,4 +43,4 @@ Use this checklist to review the active reduced pooled empirical educational mod
 4. Which missingness, subgroup, or fairness checks should be prioritized next?
 5. Is the observed-pain and observed-HR complete-case requirement acceptable for the `e-dispo-v4.0` empirical estimate?
 6. What wording should be changed before class submission or instructor review?
-7. What evidence would you require before allowing AAP-3, acuity, SBP, or tachycardia duration to affect P(admit)?
+7. What evidence would you require before allowing PAS-5, acuity, SBP, or tachycardia duration to affect P(admit)?

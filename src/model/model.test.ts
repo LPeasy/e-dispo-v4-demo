@@ -7,6 +7,7 @@ import {
   type PooledEmpiricalCoefficientDraw,
 } from "../data/pooledEmpiricalCoefficientDraws"
 import { evaluateEligibility, recodeDisposition, recodeEndpoint } from "./endpoint"
+import { initialPas5Inputs } from "./aap3Acuity"
 import { runLatinHypercubeSimulation } from "./latinHypercube"
 import { logistic, predictDisposition } from "./logisticModel"
 import type { EligibilityState, ModelInputs } from "./types"
@@ -20,6 +21,7 @@ const validInputs: ModelInputs = {
   constantVsIntermittent: "constant",
   vomiting: "yes",
   fever: "no",
+  pas5: initialPas5Inputs,
 }
 
 const allActiveInputs: ModelInputs = {

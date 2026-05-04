@@ -23,4 +23,4 @@ Predictive power is moderate and limited: exported AUROC is 0.713 and Brier scor
 
 The active NHAMCS-derived app export includes the reduced coefficient set, uncertainty fields, calibration/discrimination metrics, and evidence-tier assignments required for educational activation. The `e-dispo-v4.0` estimate requires observed pain and observed HR; missing HR is not treated as normal.
 
-AAP-3 remains `prototype_acuity_proxy` and explanatory only. Broad pain region, onset/duration, pain pattern, hematemesis, acuity, SBP, and other prototype inputs remain excluded from the empirical estimate until separate evidence gates pass. Severe pain is the active pain signal; mild and moderate are collapsed as non-severe and no monotonic pain dose-response claim is made.
+PAS-5 remains `patient_perceived_acuity_proxy` and explanatory only in `e-dispo-v4.0`. Broad pain region, onset/duration, pain pattern, hematemesis, acuity, SBP, and other prototype inputs remain excluded from the empirical estimate until separate evidence gates pass. Severe pain is the active pain signal; mild and moderate are collapsed as non-severe and no monotonic pain dose-response claim is made.

@@ -44,7 +44,7 @@ The active `e-dispo-v4.0` model has moderate discrimination, with exported AUROC
 
 The exported calibration check is internally coherent: observed prevalence and mean predicted probability both round to 11.75%, with calibration intercept near 0 and slope near 1. This is not external validation and does not establish transportability.
 
-Usability is strongest when the app foregrounds the reduced empirical inputs: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, and observed HR. Excluded prototype controls and AAP-3 should remain visually and textually separated because they do not alter the empirical estimate. Missing pain and missing HR are not silently treated as reference/normal values; the `e-dispo-v4.0` estimate requires observed pain and observed HR.
+Usability is strongest when the app foregrounds the reduced empirical inputs: exact age, severe-vs-non-severe pain status, fever/temperature proxy, vomiting, and observed HR. PAS-5 and other excluded prototype controls should remain visually and textually separated because they do not alter the `e-dispo-v4.0` empirical estimate. Missing pain and missing HR are not silently treated as reference/normal values; the `e-dispo-v4.0` estimate requires observed pain and observed HR.
 
 ## Data-Ready Path
 
@@ -52,7 +52,7 @@ NHAMCS is the primary free public empirical path for the course appendix. NEDS i
 
 Raw NHAMCS files should remain outside the static app bundle. The app shows NHAMCS-derived coefficients only through the validated static export gate in `src/data/empiricalArtifacts.ts`.
 
-The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, severe-vs-non-severe pain status, fever or temperature proxy, ordinary vomiting, and observed HR transformed into tachycardia burden. Broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, acuity, SBP, and AAP-3 are not active risk-model inputs.
+The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, severe-vs-non-severe pain status, fever or temperature proxy, ordinary vomiting, and observed HR transformed into tachycardia burden. Broad pain region, onset/duration, pain pattern, hematemesis, nausea-alone, acuity, SBP, and PAS-5 are not active `e-dispo-v4.0` risk-model inputs.
 
 ## Limitations
 
@@ -60,11 +60,11 @@ The active reduced empirical model uses pooled NHAMCS 2018-2022 exact age, sever
 - Endpoint support is stronger than exact symptom-predictor support in public datasets.
 - Some symptom predictors require proxies.
 - NHAMCS has one `PULSE` value, so tachycardia duration cannot be evaluated in this source.
-- AAP-3 is a `prototype_acuity_proxy`; it is explanatory only and not dataset-derived.
+- PAS-5 is a `patient_perceived_acuity_proxy`; it is explanatory only in `e-dispo-v4.0` and not dataset-derived as direct patient self-assessment.
 - Unknown fever or vomiting does not activate the empirical yes coefficient and should not be interpreted as confirmed absence.
 - Missing HR withholds the `e-dispo-v4.0` empirical estimate because missing HR is not normal HR.
 - Severe pain is a binary signal in the active model; it must not be described as a monotonic mild/moderate/severe dose response.
 - Nausea-alone was screened as a future NHAMCS candidate but did not pass the prespecified uncertainty gate; it remains excluded from the active model.
 - The reduced NHAMCS export includes calibration and discrimination fields for educational review, but no clinical-validity claim is made.
 - Any future empirical model must document cohort construction, endpoint recoding, missing-data handling, calibration, discrimination, and applicability.
-- Future AAP-3 risk-model use requires prespecified mapping, validation against NHAMCS or MIMIC acuity, exported coefficients and uncertainty, and a non-prototype evidence tier.
+- Future PAS-5 risk-model use requires the prespecified IMMEDR surrogate screen to pass cell-count, coefficient-direction, leave-one-year-out, calibration, and artifact gates. NHAMCS does not contain direct PAS-5 answers, so any IMMEDR result remains surrogate evidence.

@@ -32,9 +32,9 @@ The model remains appropriate only for an educational demonstration of endpoint 
 1. Input burden remains acceptable. The active empirical estimate uses exact age, observed severe-vs-non-severe pain status, fever/temperature proxy, vomiting, and observed HR.
 2. HR is a defensible numeric input. Values at or below 100 contribute zero tachycardia burden; HR 110 contributes one coefficient unit; HR 120 contributes two.
 3. Missingness handling is cleaner than v1. Pain missingness was removed from the active formula by requiring observed pain, and missing HR withholds the `e-dispo-v4.0` estimate instead of being treated as normal.
-4. Mixed active and excluded controls still create cognitive load. Broad pain region, onset/duration, pain pattern, AAP-3, hematemesis, acuity, SBP, and other prototype inputs do not alter the empirical estimate and must remain visibly separated.
+4. Mixed active and excluded controls still create cognitive load. Broad pain region, onset/duration, pain pattern, PAS-5, hematemesis, acuity, SBP, and other prototype inputs do not alter the `e-dispo-v4.0` empirical estimate and must remain visibly separated.
 5. Unknown symptom answers need careful wording. Fever or vomiting marked unknown does not activate the empirical yes coefficient and should not be described as confirmed absence.
-6. AAP-3 improves explanation but not prediction. It remains `prototype_acuity_proxy`, not dataset-derived, not clinical triage, and not part of P(admit).
+6. PAS-5 improves explanation but not current prediction. It remains `patient_perceived_acuity_proxy`, not dataset-derived as direct patient self-assessment, and not part of `e-dispo-v4.0` P(admit).
 7. Tachycardia duration is not feasible in NHAMCS. The source contains one `PULSE` value, not serial vitals; duration can only be a future MIMIC-style timestamped extraction question.
 8. No additional user-feasible structured NHAMCS symptom passed the current screen; broader variable discovery should use a richer data source rather than lowering the evidence gate.
 

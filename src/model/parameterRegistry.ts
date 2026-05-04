@@ -1,3 +1,4 @@
+import { calculatePas5Acuity } from "./aap3Acuity"
 import type { LogisticTerm, ModelInputs } from "./types"
 
 export type EvidenceTier =
@@ -44,6 +45,7 @@ export const parameterOrder: Array<keyof ModelInputs> = [
   "constantVsIntermittent",
   "vomiting",
   "fever",
+  "pas5",
 ]
 
 export const parameterValueLabels: Record<string, string> = {
@@ -66,6 +68,9 @@ export const parameterValueLabels: Record<string, string> = {
   yes: "Yes",
   no: "No",
   unknown: "Unknown",
+  high_acuity: "High-acuity surrogate",
+  urgent_reference: "Urgent reference",
+  lower_acuity: "Lower-acuity surrogate",
 }
 
 export const parameterRegistry: Record<keyof ModelInputs, ParameterDefinition> = {
@@ -224,13 +229,34 @@ export const parameterRegistry: Record<keyof ModelInputs, ParameterDefinition> =
       "Fever may need a temperature or symptom-code proxy and requires dataset-specific recoding.",
     readyForEmpiricalUse: false,
   },
+  pas5: {
+    id: "pas5",
+    label: "Patient-perceived acuity proxy",
+    intendedMeaning:
+      "Five-question PAS-5 self-report proxy, bridged to a binary high-acuity proxy for candidate modeling.",
+    userControl: "segmented",
+    doseResponse: {
+      kind: "nominal",
+      reference: "urgent_reference",
+      levels: ["high_acuity", "urgent_reference", "lower_acuity"],
+    },
+    distributions: {
+      high_acuity: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
+      urgent_reference: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
+      lower_acuity: normalEffect(0, 0, ["nhamcs-immedr-surrogate"], "unsupported"),
+    },
+    documentationAnchor: "parameter-pas5-acuity-proxy",
+    limitations:
+      "Direct PAS-5 answers are not observed in NHAMCS. The v4.1 screen maps PAS-5 A1/A2 to a binary high-acuity proxy and uses IMMEDR only as a surrogate. PAS-5 remains explanatory in e-dispo-v4.0.",
+    readyForEmpiricalUse: false,
+  },
 }
 
 export function allParameterDefinitions(): ParameterDefinition[] {
   return parameterOrder.map((id) => parameterRegistry[id])
 }
 
-export function parameterTermRecords<T extends keyof ModelInputs>(
+export function parameterTermRecords<T extends Exclude<keyof ModelInputs, "pas5">>(
   id: T
 ): Record<ModelInputs[T], LogisticTerm> {
   const definition = parameterRegistry[id]
@@ -250,6 +276,18 @@ export function parameterTermRecords<T extends keyof ModelInputs>(
 
 export function activeParameterTerms(inputs: ModelInputs): LogisticTerm[] {
   return parameterOrder.map((id) => {
+    if (id === "pas5") {
+      const result = calculatePas5Acuity(inputs.pas5)
+      const distribution = parameterRegistry.pas5.distributions[result.group]
+
+      return {
+        key: `pas5.${result.group}`,
+        label: `PAS-5 ${result.acuityClass}: ${parameterValueLabels[result.group]}`,
+        mean: distribution.mean,
+        standardError: distribution.standardError,
+      }
+    }
+
     const value = inputs[id]
     const distribution = parameterRegistry[id].distributions[String(value)]
 

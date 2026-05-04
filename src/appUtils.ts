@@ -1,5 +1,6 @@
 import type { AgeBand, BinarySymptom, ModelInputs, PainSeverity } from "@/model/types";
 import type { ReadinessState, SimulationCount } from "@/appTypes";
+import { pas5Questions } from "@/model/aap3Acuity";
 
 export const simulationCounts = [1000, 10000, 100000] as const;
 export const painOptions: PainSeverity[] = ["mild", "moderate", "severe"];
@@ -35,6 +36,7 @@ export function buildModelRunKey(
     inputs.painSeverity,
     inputs.fever,
     inputs.vomiting,
+    ...pas5Questions.map((question) => inputs.pas5[question.id]),
     sampleCount,
   ].join("|");
 }

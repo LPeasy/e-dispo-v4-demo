@@ -58,7 +58,7 @@ Required app behavior:
 - Missing pain blocks the empirical estimate.
 - Missing HR blocks the empirical estimate.
 - Unknown fever and vomiting do not activate the yes indicators and are not treated as confirmed absence.
-- AAP-3 and excluded prototype fields must not change P(admit).
+- PAS-5 and excluded prototype fields must not change P(admit) while `e-dispo-v4.0` is active.
 
 Required source updates:
 
@@ -93,7 +93,7 @@ Do not close the task if:
 - The app still describes the active pain term as flexible/nonmonotonic.
 - The active model ID remains the old v2 ID.
 - Missing pain or missing HR is silently treated as a reference value.
-- AAP-3 or prototype controls affect P(admit).
+- PAS-5 or prototype controls affect P(admit) while `e-dispo-v4.0` is active.
 - Documentation implies clinical deployment, triage, diagnosis, discharge safety, or medical advice.
 
 ## Defaults Chosen

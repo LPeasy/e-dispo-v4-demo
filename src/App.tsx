@@ -53,6 +53,7 @@ import {
   predictPooledEmpiricalDisposition,
   toPooledEmpiricalPredictionInputs,
 } from "@/model/pooledEmpiricalPrediction";
+import { initialPas5Inputs } from "@/model/aap3Acuity";
 import type {
   BinarySymptom,
   ModelInputs,
@@ -62,7 +63,7 @@ import type {
 } from "@/model/types";
 import { useSimulationWorker } from "@/model/useSimulationWorker";
 import type { SimulationWorkerState } from "@/model/useSimulationWorker";
-import { valueLabels } from "@/model/worksheet";
+import { formatPas5Inputs, valueLabels } from "@/model/worksheet";
 import type { ModelRun, Page, SimulationCount } from "@/appTypes";
 import { DefinitionRow, PageHeader, ResultMetric } from "@/components/AppShared";
 import { CustomerPreviewPage } from "@/components/CustomerPreview";
@@ -107,6 +108,7 @@ const runDifferenceFields: Array<{ id: keyof ModelInputs; label: string }> = [
   { id: "painSeverity", label: "Pain" },
   { id: "fever", label: "Fever" },
   { id: "vomiting", label: "Vomiting" },
+  { id: "pas5", label: "PAS-5" },
 ];
 type ArcadeHud = {
   mode: ArcadeMode;
@@ -396,6 +398,7 @@ const defaultModelInputs: ModelInputs = {
   constantVsIntermittent: "unknown",
   vomiting: "no",
   fever: "no",
+  pas5: initialPas5Inputs,
 };
 
 function App() {
@@ -404,6 +407,7 @@ function App() {
   const [painSeverity, setPainSeverity] = useState<PainSeverity>("moderate");
   const [fever, setFever] = useState<BinarySymptom>("no");
   const [vomiting, setVomiting] = useState<BinarySymptom>("no");
+  const [pas5, setPas5] = useState(initialPas5Inputs);
   const [heartRateText, setHeartRateText] = useState("88");
   const [sampleCount, setSampleCount] = useState<SimulationCount>(10000);
   const [modelRun, setModelRun] = useState<ModelRun | null>(null);
@@ -431,8 +435,9 @@ function App() {
       painSeverity,
       fever,
       vomiting,
+      pas5,
     }),
-    [ageBand, fever, painSeverity, vomiting],
+    [ageBand, fever, painSeverity, vomiting, pas5],
   );
   const readinessState = useMemo(
     () => buildReadinessState(age, heartRateBpm),
@@ -611,6 +616,8 @@ function App() {
               setFever={setFever}
               vomiting={vomiting}
               setVomiting={setVomiting}
+              pas5={pas5}
+              setPas5={setPas5}
               sampleCount={sampleCount}
               setSampleCount={setSampleCount}
               readinessState={readinessState}
@@ -638,6 +645,8 @@ function App() {
               setFever={setFever}
               vomiting={vomiting}
               setVomiting={setVomiting}
+              pas5={pas5}
+              setPas5={setPas5}
               sampleCount={sampleCount}
               setSampleCount={setSampleCount}
               readinessState={readinessState}
@@ -696,6 +705,7 @@ function ResultsInputBanner({
           <BannerDatum label="Pain" value={valueLabels[run.inputs.painSeverity]} />
           <BannerDatum label="Fever" value={valueLabels[run.inputs.fever]} />
           <BannerDatum label="Vomiting" value={valueLabels[run.inputs.vomiting]} />
+          <BannerDatum label="PAS-5" value={formatPas5Inputs(run.inputs.pas5)} />
           <BannerDatum label="HR" value={`${run.heartRateBpm} bpm`} />
           <Badge variant={ready ? "default" : "secondary"}>
             {ready ? "Model-ready" : "Input changed"}
@@ -907,13 +917,11 @@ function summarizeRunDifferences(
   }
 
   runDifferenceFields.forEach((field) => {
-    const referenceValue = reference.inputs[field.id];
-    const runValue = run.inputs[field.id];
+    const referenceValue = formatRunInputValue(reference.inputs[field.id]);
+    const runValue = formatRunInputValue(run.inputs[field.id]);
     if (referenceValue !== runValue) {
       differences.push(
-        `${field.label}: ${formatRunInputValue(referenceValue)} -> ${formatRunInputValue(
-          runValue,
-        )}`,
+        `${field.label}: ${referenceValue} -> ${runValue}`,
       );
     }
   });
@@ -934,6 +942,10 @@ function summarizeRunDifferences(
 }
 
 function formatRunInputValue(value: ModelInputs[keyof ModelInputs]): string {
+  if (typeof value === "object") {
+    return formatPas5Inputs(value);
+  }
+
   return valueLabels[String(value)] ?? String(value);
 }
 

@@ -14,6 +14,7 @@ from typing import Any
 import pandas as pd
 
 import build_cohort
+import code_lists
 
 
 DEFAULT_CONFIG = Path("config/nhamcs_year_harmonization.yml")
@@ -152,15 +153,28 @@ def build_year_outputs(
     config = build_cohort_config(year_config, pooled_config)
     weights = build_cohort.weight_series(df)
     masks = build_cohort.cohort_masks(df, config)
-    endpoint_frame = df.loc[masks["non_trauma"]].copy()
-    endpoint_frame["endpoint_class"] = build_cohort.classify_endpoint(endpoint_frame, config)
-    endpoint_frame["admit"] = endpoint_frame["endpoint_class"].eq("admit").astype(int)
-    endpoint_frame["include_strict_binary"] = endpoint_frame["endpoint_class"].isin(
-        ["admit", "routine_home_discharge"]
-    )
+    endpoint_frame = endpoint_frame_for_scope(df, config, masks["non_trauma"])
+    full_source_endpoint_frame = endpoint_frame_for_scope(df, config, masks["all_records"])
+    full_source_nontrauma_frame = endpoint_frame_for_scope(df, config, masks["non_trauma_all"])
 
     analytic = build_cohort.build_model_frame(endpoint_frame, config)
-    analytic = add_year_columns(analytic, endpoint_frame, year, year_config)
+    analytic = add_year_columns(analytic, endpoint_frame, year, year_config, masks, "active_analytic")
+    full_source_endpoint = add_year_columns(
+        build_cohort.build_model_frame(full_source_endpoint_frame, config),
+        full_source_endpoint_frame,
+        year,
+        year_config,
+        masks,
+        "full_source_endpoint",
+    )
+    full_source_nontrauma = add_year_columns(
+        build_cohort.build_model_frame(full_source_nontrauma_frame, config),
+        full_source_nontrauma_frame,
+        year,
+        year_config,
+        masks,
+        "full_source_nontrauma",
+    )
     flow = add_year_to_rows(
         year,
         relabel_2022_rows(build_cohort.cohort_flow_rows(df, masks, endpoint_frame, weights), year),
@@ -168,7 +182,13 @@ def build_year_outputs(
     endpoint_audit = add_year_to_rows(year, build_cohort.endpoint_audit_rows(endpoint_frame))
     harmonization_audit = add_year_to_rows(
         year,
-        relabel_dataset_rows(build_cohort.harmonization_audit_rows(endpoint_frame, analytic, config), f"NHAMCS_{year}"),
+        relabel_dataset_rows(
+            [
+                *build_cohort.harmonization_audit_rows(endpoint_frame, analytic, config),
+                *general_model_harmonization_audit_rows(endpoint_frame, analytic),
+            ],
+            f"NHAMCS_{year}",
+        ),
     )
     missingness = add_year_to_rows(
         year,
@@ -188,6 +208,14 @@ def build_year_outputs(
         "record_count": int(len(df)),
         "strict_binary_n": int(analytic["include_strict_binary"].sum()),
         "strict_binary_admissions": int(analytic.loc[analytic["include_strict_binary"], "admit"].sum()),
+        "full_source_endpoint_strict_binary_n": int(full_source_endpoint["include_strict_binary"].sum()),
+        "full_source_endpoint_strict_binary_admissions": int(
+            full_source_endpoint.loc[full_source_endpoint["include_strict_binary"], "admit"].sum()
+        ),
+        "full_source_nontrauma_strict_binary_n": int(full_source_nontrauma["include_strict_binary"].sum()),
+        "full_source_nontrauma_strict_binary_admissions": int(
+            full_source_nontrauma.loc[full_source_nontrauma["include_strict_binary"], "admit"].sum()
+        ),
         "mapping_status": pooled_config["pool"].get("mapping_status", "unconfirmed_codebook_review_required"),
         "known_coding_differences": year_config.get("known_coding_differences", []),
         "predictor_transform_metadata": pooled_config["pool"].get(
@@ -203,6 +231,8 @@ def build_year_outputs(
     return {
         "year": year,
         "analytic": analytic,
+        "full_source_endpoint": full_source_endpoint,
+        "full_source_nontrauma": full_source_nontrauma,
         "cohort_flow": flow,
         "endpoint_audit": endpoint_audit,
         "harmonization_audit": harmonization_audit,
@@ -210,6 +240,20 @@ def build_year_outputs(
         "pain_rates": pain_rates,
         "metadata": metadata,
     }
+
+
+def endpoint_frame_for_scope(
+    df: pd.DataFrame,
+    config: dict[str, Any],
+    mask: pd.Series,
+) -> pd.DataFrame:
+    endpoint_frame = df.loc[mask].copy()
+    endpoint_frame["endpoint_class"] = build_cohort.classify_endpoint(endpoint_frame, config)
+    endpoint_frame["admit"] = endpoint_frame["endpoint_class"].eq("admit").astype(int)
+    endpoint_frame["include_strict_binary"] = endpoint_frame["endpoint_class"].isin(
+        ["admit", "routine_home_discharge"]
+    )
+    return endpoint_frame
 
 
 def build_cohort_config(year_config: dict[str, Any], pooled_config: dict[str, Any]) -> dict[str, Any]:
@@ -246,6 +290,8 @@ def missing_required_columns(df: pd.DataFrame, year_config: dict[str, Any]) -> l
     required.extend(year_config["rfv_variables"])
     for columns in year_config["disposition_flags"].values():
         required.extend(column for column in columns if column not in OPTIONAL_DISPOSITION_COLUMNS)
+    required.extend(nhamcs_subgroup_source_fields())
+    required.extend(nhamcs_general_model_source_fields())
     missing = sorted({column for column in required if column not in df.columns})
     return missing
 
@@ -259,6 +305,7 @@ def with_canonical_columns(df: pd.DataFrame, year_config: dict[str, Any]) -> pd.
         year_config.get("pain_variable", "PAINSCALE"): "PAINSCALE",
         year_config.get("temperature_variable", "TEMPF"): "TEMPF",
         year_config.get("triage_variable", "IMMEDR"): "IMMEDR",
+        year_config.get("arrival_transfer_variable", "AMBTRANSFER"): "AMBTRANSFER",
         year_config.get("heart_rate_variable", "PULSE"): "PULSE",
         year_config.get("systolic_bp_variable", "BPSYS"): "BPSYS",
     }
@@ -273,27 +320,59 @@ def add_year_columns(
     endpoint_frame: pd.DataFrame,
     year: int,
     year_config: dict[str, Any],
+    masks: dict[str, pd.Series] | None = None,
+    source_scope: str = "active_analytic",
 ) -> pd.DataFrame:
     out = analytic.copy()
     out["year"] = int(year)
     out["dataset"] = f"NHAMCS_{year}"
     out["record_id"] = [f"{year}-{i + 1}" for i in range(len(out))]
     out["sex"] = endpoint_frame[year_config["sex_variable"]].reset_index(drop=True)
-    out["abdominal_pain_flag"] = True
-    out["trauma_exclusion_flag"] = False
+    out["source_scope"] = source_scope
+    if masks is None:
+        out["adult_male_18_64_flag"] = True
+        out["abdominal_pain_flag"] = True
+        out["non_trauma_flag"] = True
+        out["in_active_scope"] = True
+    else:
+        original_index = endpoint_frame.index
+        out["adult_male_18_64_flag"] = masks["male_age_18_64"].loc[original_index].reset_index(drop=True).astype(bool)
+        out["abdominal_pain_flag"] = masks["abdominal_pain_any_rfv"].loc[original_index].reset_index(drop=True).astype(bool)
+        out["non_trauma_flag"] = masks["non_trauma_all"].loc[original_index].reset_index(drop=True).astype(bool)
+        out["in_active_scope"] = masks["non_trauma"].loc[original_index].reset_index(drop=True).astype(bool)
+    out["trauma_exclusion_flag"] = ~out["non_trauma_flag"]
     out["endpoint_class"] = out["endpoint"]
     out["PATWT"] = out["weight"]
     out["CSTRATM"] = out["stratum"]
     out["CPSUM"] = out["psu"]
+    out = add_subgroup_fields(out, endpoint_frame)
+    out = add_general_model_fields(out, endpoint_frame)
     ordered = [
         "year",
         "record_id",
         "dataset",
+        "source_scope",
         "age",
         "sex",
         "age_band",
+        "age_band_full",
+        "RACERETH",
+        "race_ethnicity",
+        "PAYTYPER",
+        "payer",
+        "REGION",
+        "region",
+        "MSA",
+        "msa_status",
+        "IMMEDR",
+        "acuity_code",
+        "AMBTRANSFER",
+        "arrival_transfer_context",
+        "adult_male_18_64_flag",
         "abdominal_pain_flag",
+        "non_trauma_flag",
         "trauma_exclusion_flag",
+        "in_active_scope",
         "endpoint_class",
         "endpoint",
         "include_strict_binary",
@@ -307,6 +386,7 @@ def add_year_columns(
         "HR",
         "tachycardia_burden",
         "SBP",
+        "hypotension_burden",
         "PATWT",
         "CSTRATM",
         "CPSUM",
@@ -322,6 +402,128 @@ def add_year_columns(
         "vomiting",
     ]
     return out[[column for column in ordered if column in out.columns]].reset_index(drop=True)
+
+
+def nhamcs_subgroup_source_fields() -> list[str]:
+    maps = code_lists.load_code_list("nhamcs_subgroup_recode_maps")
+    return list(maps["fields"].keys())
+
+
+def nhamcs_general_model_source_fields() -> list[str]:
+    maps = code_lists.load_code_list("nhamcs_general_e_dispo_model_recode_maps")
+    return list(maps["fields"].keys())
+
+
+def add_subgroup_fields(analytic: pd.DataFrame, endpoint_frame: pd.DataFrame) -> pd.DataFrame:
+    out = analytic.copy()
+    maps = code_lists.load_code_list("nhamcs_subgroup_recode_maps")
+    for source_field, mapping in maps["fields"].items():
+        if source_field not in endpoint_frame.columns:
+            raise ValueError(f"Required NHAMCS subgroup field is absent: {source_field}")
+        output_field = mapping["output"]
+        raw = endpoint_frame[source_field].reset_index(drop=True)
+        out[source_field] = raw
+        out[output_field] = raw.map(lambda value: recode_subgroup_value(value, mapping["codes"], source_field))
+    return out
+
+
+def add_general_model_fields(analytic: pd.DataFrame, endpoint_frame: pd.DataFrame) -> pd.DataFrame:
+    out = analytic.copy()
+    maps = code_lists.load_code_list("nhamcs_general_e_dispo_model_recode_maps")
+    for source_field, mapping in maps["fields"].items():
+        if source_field not in endpoint_frame.columns:
+            raise ValueError(f"Required NHAMCS general-model field is absent: {source_field}")
+        output_field = mapping["output"]
+        raw = endpoint_frame[source_field].reset_index(drop=True)
+        out[source_field] = raw
+        out[output_field] = raw.map(lambda value: recode_subgroup_value(value, mapping["codes"], source_field))
+    out["hypotension_burden"] = hypotension_burden_from_sbp(out["SBP"]) if "SBP" in out.columns else None
+    return out
+
+
+def general_model_harmonization_audit_rows(raw_frame: pd.DataFrame, analytic: pd.DataFrame) -> list[dict[str, Any]]:
+    maps = code_lists.load_code_list("nhamcs_general_e_dispo_model_recode_maps")
+    rows: list[dict[str, Any]] = []
+    for source_field, mapping in maps["fields"].items():
+        output_field = mapping["output"]
+        raw = raw_frame[source_field].reset_index(drop=True)
+        recoded = analytic[output_field].reset_index(drop=True)
+        missing = raw.isna()
+        expected_codes = set(mapping["codes"].keys())
+        raw_keys = {normalized_code_key(value) for value in raw[~missing]}
+        unexpected = sorted(raw_keys - expected_codes)
+        rows.append(
+            {
+                "dataset": "NHAMCS_2022",
+                "field": output_field,
+                "source_column": source_field,
+                "raw_n": int(len(raw)),
+                "raw_missing_n": int(missing.sum()),
+                "raw_sentinel_values": ";".join(mapping["codes"].keys()),
+                "raw_sentinel_n": int(raw.map(lambda value: normalized_code_key(value) in expected_codes).sum()),
+                "post_recode_missing_n": int(recoded.isna().sum()),
+                "valid_n": int(recoded.notna().sum()),
+                "min": "",
+                "median": "",
+                "max": "",
+                "scale": "codebook_label_recode",
+                "units": "categorical",
+                "notes": (
+                    f"{source_field} value-label recode for general-E-Dispo-model-v1; "
+                    f"label={mapping.get('value_label', '')}; unexpected_codes={','.join(unexpected)}"
+                ),
+            }
+        )
+    if "hypotension_burden" in analytic.columns:
+        raw = analytic["SBP"] if "SBP" in analytic.columns else pd.Series(dtype="float64")
+        recoded = analytic["hypotension_burden"]
+        valid = pd.to_numeric(recoded, errors="coerce").dropna()
+        rows.append(
+            {
+                "dataset": "NHAMCS_2022",
+                "field": "hypotension_burden",
+                "source_column": "BPSYS",
+                "raw_n": int(len(raw)),
+                "raw_missing_n": int(pd.Series(raw).isna().sum()),
+                "raw_sentinel_values": "-9",
+                "raw_sentinel_n": 0,
+                "post_recode_missing_n": int(pd.Series(recoded).isna().sum()),
+                "valid_n": int(pd.Series(recoded).notna().sum()),
+                "min": build_cohort.round_or_blank(float(valid.min())) if len(valid) else "",
+                "median": build_cohort.round_or_blank(float(valid.median())) if len(valid) else "",
+                "max": build_cohort.round_or_blank(float(valid.max())) if len(valid) else "",
+                "scale": "derived_from_recoded_sbp",
+                "units": "10_mmhg_below_100",
+                "notes": "max(100 - SBP, 0) / 10 after BPSYS sentinel recoding; missing when SBP is missing.",
+            }
+        )
+    return rows
+
+
+def normalized_code_key(value: Any) -> str:
+    if pd.isna(value):
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def recode_subgroup_value(value: Any, mapping: dict[str, str], source_field: str) -> str | None:
+    if pd.isna(value):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        key = str(int(value))
+    else:
+        key = str(value).strip()
+    if key in mapping:
+        return mapping[key]
+    raise ValueError(f"Unexpected {source_field} value in NHAMCS subgroup mapping: {value!r}")
+
+
+def hypotension_burden_from_sbp(values: Any) -> pd.Series:
+    numeric = pd.to_numeric(pd.Series(values), errors="coerce").astype("float64")
+    burden = (100.0 - numeric).clip(lower=0.0) / 10.0
+    return burden.mask(numeric.isna())
 
 
 def add_year_to_rows(year: int, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -359,6 +561,8 @@ def write_year_outputs(result: dict[str, Any], output_dir: Path) -> None:
     write_csv(output_dir / f"missingness_by_endpoint_{year}.csv", result["missingness"])
     write_csv(output_dir / f"pain_unadjusted_rates_{year}.csv", result["pain_rates"])
     result["analytic"].to_csv(output_dir / f"analytic_cohort_{year}.csv", index=False)
+    result["full_source_endpoint"].to_csv(output_dir / f"full_source_endpoint_cohort_{year}.csv", index=False)
+    result["full_source_nontrauma"].to_csv(output_dir / f"full_source_nontrauma_cohort_{year}.csv", index=False)
     (output_dir / f"cohort_metadata_{year}.json").write_text(
         json.dumps(result["metadata"], indent=2),
         encoding="utf-8",

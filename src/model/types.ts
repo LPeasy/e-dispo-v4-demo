@@ -1,3 +1,5 @@
+import type { Pas5Inputs } from "./aap3Acuity";
+
 export type EndpointLabel = "admit" | "treat_and_release";
 export type RecodingResult =
   | { status: "included"; label: EndpointLabel; reason: string }
@@ -47,6 +49,7 @@ export interface ModelInputs {
   constantVsIntermittent: PainPattern;
   vomiting: BinarySymptom;
   fever: BinarySymptom;
+  pas5: Pas5Inputs;
 }
 
 export interface EligibilityState {

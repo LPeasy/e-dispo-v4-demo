@@ -2,102 +2,111 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
-  aap3AcuityClasses,
-  calculateAap3Posterior,
-  initialAap3Inputs,
+  calculatePas5Acuity,
+  initialPas5Inputs,
+  pas5ClassToGroup,
+  pas5ScoreToClass,
+  type Pas5Inputs,
 } from "./aap3Acuity"
-import { predictPooledEmpiricalDisposition } from "./pooledEmpiricalPrediction"
 
-test("AAP-3 posterior probabilities sum to 1", () => {
-  const posterior = calculateAap3Posterior(initialAap3Inputs)
-  const total = aap3AcuityClasses.reduce(
-    (sum, { id }) => sum + posterior.probabilities[id],
-    0
+test("PAS-5 default score maps to A5 lower-acuity group", () => {
+  const result = calculatePas5Acuity(initialPas5Inputs)
+
+  assert.equal(result.score, 0)
+  assert.equal(result.unguardedClass, "A5")
+  assert.equal(result.acuityClass, "A5")
+  assert.equal(result.group, "lower_acuity")
+  assert.equal(result.highAcuityProxy, false)
+  assert.equal(result.guardrailApplied, false)
+})
+
+test("PAS-5 score thresholds map to the prespecified classes", () => {
+  assert.equal(pas5ScoreToClass(0), "A5")
+  assert.equal(pas5ScoreToClass(2), "A5")
+  assert.equal(pas5ScoreToClass(3), "A4")
+  assert.equal(pas5ScoreToClass(5), "A4")
+  assert.equal(pas5ScoreToClass(6), "A3")
+  assert.equal(pas5ScoreToClass(8), "A3")
+  assert.equal(pas5ScoreToClass(9), "A2")
+  assert.equal(pas5ScoreToClass(11), "A2")
+  assert.equal(pas5ScoreToClass(12), "A1")
+  assert.equal(pas5ScoreToClass(15), "A1")
+})
+
+test("PAS-5 one guardrail answer prevents class below A2", () => {
+  const result = calculatePas5Acuity({
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+  })
+
+  assert.equal(result.score, 3)
+  assert.equal(result.unguardedClass, "A4")
+  assert.equal(result.acuityClass, "A2")
+  assert.equal(result.group, "high_acuity")
+  assert.equal(result.highAcuityProxy, true)
+  assert.equal(result.guardrailCount, 1)
+  assert.equal(result.guardrailApplied, true)
+})
+
+test("PAS-5 two guardrail answers prevent class below A1", () => {
+  const result = calculatePas5Acuity({
+    ...initialPas5Inputs,
+    immediateConcern: "unsafe_waiting",
+    distress: "overwhelming",
+  })
+
+  assert.equal(result.score, 6)
+  assert.equal(result.unguardedClass, "A3")
+  assert.equal(result.acuityClass, "A1")
+  assert.equal(result.group, "high_acuity")
+  assert.equal(result.guardrailCount, 2)
+  assert.equal(result.guardrailApplied, true)
+})
+
+test("PAS-5 class grouping uses high, urgent reference, and lower groups", () => {
+  assert.equal(pas5ClassToGroup("A1"), "high_acuity")
+  assert.equal(pas5ClassToGroup("A2"), "high_acuity")
+  assert.equal(pas5ClassToGroup("A3"), "urgent_reference")
+  assert.equal(pas5ClassToGroup("A4"), "lower_acuity")
+  assert.equal(pas5ClassToGroup("A5"), "lower_acuity")
+})
+
+test("PAS-5 binary high-acuity proxy is true only for A1/A2", () => {
+  assert.equal(
+    calculatePas5Acuity({
+      ...initialPas5Inputs,
+      immediateConcern: "unsafe_waiting",
+    }).highAcuityProxy,
+    true,
   )
-
-  assert.ok(Math.abs(total - 1) < 1e-12)
-})
-
-test("higher danger and distress shifts posterior mass toward A1/A2", () => {
-  const lowConcern = calculateAap3Posterior({
-    ...initialAap3Inputs,
-    dangerDistress: "q1_1_none",
-  })
-  const highConcern = calculateAap3Posterior({
-    ...initialAap3Inputs,
-    dangerDistress: "q1_5_danger_or_immediate_concern",
-  })
-
-  const lowHighAcuity =
-    lowConcern.probabilities.A1 + lowConcern.probabilities.A2
-  const highHighAcuity =
-    highConcern.probabilities.A1 + highConcern.probabilities.A2
-
-  assert.ok(highHighAcuity > lowHighAcuity)
-})
-
-test("unknown vitals differs from normal vitals", () => {
-  const normalVitals = calculateAap3Posterior({
-    ...initialAap3Inputs,
-    vitalsSystemic: "q2_1_normal_vitals",
-  })
-  const unknownVitals = calculateAap3Posterior({
-    ...initialAap3Inputs,
-    vitalsSystemic: "q2_2_vitals_unknown",
-  })
-
-  assert.notEqual(
-    normalVitals.probabilities.A4 + normalVitals.probabilities.A5,
-    unknownVitals.probabilities.A4 + unknownVitals.probabilities.A5
+  assert.equal(
+    calculatePas5Acuity({
+      ...initialPas5Inputs,
+      trajectory: "rapidly_worse_or_new_major_symptoms",
+      expectedResources: "labs_iv_or_imaging",
+      distress: "uncomfortable",
+    }).highAcuityProxy,
+    false,
   )
+  assert.equal(calculatePas5Acuity(initialPas5Inputs).highAcuityProxy, false)
 })
 
-test("Q1-5 guardrail prevents low-acuity down-triage", () => {
-  const posterior = calculateAap3Posterior({
-    dangerDistress: "q1_5_danger_or_immediate_concern",
-    vitalsSystemic: "q2_1_normal_vitals",
-    abdominalFeatures: "q3_1_no_high_risk_features",
-  })
+test("PAS-5 rejects missing or unsupported answers", () => {
+  const missing = {
+    ...initialPas5Inputs,
+    distress: undefined,
+  } as unknown as Pas5Inputs
+  const unsupported = {
+    ...initialPas5Inputs,
+    trajectory: "unknown",
+  } as unknown as Pas5Inputs
 
-  assert.equal(posterior.guardrailApplied, true)
-  assert.ok(posterior.probabilities.A4 + posterior.probabilities.A5 <= 0.0500000001)
-  assert.ok(
-    posterior.probabilities.A1 + posterior.probabilities.A2 >
-      posterior.probabilities.A4 + posterior.probabilities.A5
+  assert.throws(
+    () => calculatePas5Acuity(missing),
+    /Missing PAS-5 answer for distress/,
   )
-})
-
-test("AAP-3 output does not change empirical P(admit)", () => {
-  const empiricalInputs = {
-    age: 42,
-    painSeverity: "moderate" as const,
-    fever: "no" as const,
-    vomiting: "no" as const,
-    heartRateBpm: 100,
-  }
-  const lowConcernAap3 = calculateAap3Posterior({
-    dangerDistress: "q1_1_none",
-    vitalsSystemic: "q2_1_normal_vitals",
-    abdominalFeatures: "q3_1_no_high_risk_features",
-  })
-  const highConcernAap3 = calculateAap3Posterior({
-    dangerDistress: "q1_5_danger_or_immediate_concern",
-    vitalsSystemic: "q2_5_unstable_systemic",
-    abdominalFeatures: "q3_4_bleeding_or_severe_abdominal_features",
-  })
-
-  const lowConcernRiskInputs = {
-    ...empiricalInputs,
-    aap3: lowConcernAap3,
-  }
-  const highConcernRiskInputs = {
-    ...empiricalInputs,
-    aap3: highConcernAap3,
-  }
-  const lowConcernRisk = predictPooledEmpiricalDisposition(lowConcernRiskInputs)
-  const highConcernRisk = predictPooledEmpiricalDisposition(highConcernRiskInputs)
-
-  assert.equal(lowConcernRisk.probabilityAdmit, highConcernRisk.probabilityAdmit)
-  assert.equal(lowConcernAap3.evidenceLabel, "prototype_acuity_proxy")
-  assert.equal(highConcernAap3.evidenceLabel, "prototype_acuity_proxy")
+  assert.throws(
+    () => calculatePas5Acuity(unsupported),
+    /Missing PAS-5 answer for trajectory/,
+  )
 })

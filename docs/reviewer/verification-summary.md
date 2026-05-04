@@ -42,4 +42,4 @@ Fresh endpoint-refined screenshots are included in the package:
 
 The model remains educational/statistical only. Passing these checks means the package builds and the documented logic is internally consistent. It does not mean the model is clinically validated.
 
-The `e-dispo-v4.0` reduced pooled NHAMCS coefficients are active only for educational display. AAP-3 and other unsupported prototype inputs do not activate NHAMCS-derived risk effects in the app.
+The `e-dispo-v4.0` reduced pooled NHAMCS coefficients are active only for educational display. PAS-5 and other unsupported prototype inputs do not activate NHAMCS-derived risk effects in the app.

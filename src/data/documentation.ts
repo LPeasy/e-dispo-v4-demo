@@ -132,7 +132,7 @@ export const modelCardRows = [
   {
     label: "Usability boundary",
     value:
-      "The empirical estimate uses a reduced input set; excluded prototype controls and AAP-3 do not change P(admit).",
+      "The empirical estimate uses a reduced input set; excluded prototype controls and PAS-5 do not change P(admit) in e-dispo-v4.0.",
   },
   {
     label: "Model form",
@@ -254,10 +254,10 @@ export const probastRiskRows = [
   {
     domain: "Analysis",
     concern:
-      "The active reduced NHAMCS model does not use the full prototype input set or AAP-3.",
+      "The active reduced NHAMCS model does not use the full prototype input set or PAS-5.",
     risk: "High",
     mitigation:
-      "Display excluded inputs separately and keep AAP-3 explanatory until validation gates pass.",
+      "Display excluded inputs separately and keep PAS-5 explanatory until the IMMEDR surrogate evidence gate passes.",
   },
   {
     domain: "Applicability",
@@ -294,9 +294,9 @@ export const tripodChecklistRows = [
   },
   {
     item: "Sample size and missingness",
-    status: "Partly complete",
+    status: "Reported with blockers",
     evidence:
-      "Artifacts include cohort counts and pain-scale fit exclusions; a full missingness table remains next-phase work.",
+      "Artifacts include cohort counts, active-model missingness/proxy-availability performance rows, and race/ethnicity, payer, region, and MSA subgroup rows; small payer levels remain sparse-cell or no-outcome blockers.",
   },
   {
     item: "Model specification",
@@ -307,7 +307,7 @@ export const tripodChecklistRows = [
     item: "Performance",
     status: "Reported for educational activation",
     evidence:
-      "Pooled empirical report includes AUROC 0.713, Brier 0.098, calibration intercept, and calibration slope, but no clinical validity claim is made.",
+      "Pooled empirical report includes AUROC 0.713, Brier 0.098, grouped calibration, fixed-prediction apparent intervals, and bootstrap-refit internal optimism correction, but no external-validation or clinical-validity claim is made.",
   },
   {
     item: "Limitations",
@@ -353,9 +353,9 @@ export const qaEvidenceRows = [
       "Unit tests validate the pooled app export and reject missing or invalid empirical artifacts.",
   },
   {
-    check: "AAP-3 isolation",
+    check: "PAS-5 isolation",
     evidence:
-      "Unit tests verify AAP-3 probabilities, guardrails, evidence label, and no effect on empirical P(admit).",
+      "Unit tests verify PAS-5 scoring, guardrails, grouping, missing-answer handling, and no effect on empirical P(admit) while e-dispo-v4.0 is active.",
   },
   {
     check: "Predictive power and usability review",

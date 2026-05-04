@@ -16,6 +16,7 @@ export type PooledEmpiricalCoefficientVector = {
   fever_or_temp: number
   vomiting_present: number
   tachycardia_burden: number
+  high_acuity_proxy?: number
 }
 
 export const pooledEmpiricalCoefficientDrawMetadata = {
@@ -27,8 +28,10 @@ export const pooledEmpiricalCoefficientDrawMetadata = {
   assetPath: pooledEmpiricalCoefficientDrawAssetUrl,
 } as const
 
-const expectedCoefficientDrawHeader =
+const eDispoV40CoefficientDrawHeader =
   "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,seed"
+const eDispoV41Pas5CoefficientDrawHeader =
+  "draw_id,intercept,age_centered,pain_severe,fever_or_temp,vomiting_present,tachycardia_burden,high_acuity_proxy,seed"
 
 const expectedCoefficientKeys = [
   "intercept",
@@ -39,12 +42,16 @@ const expectedCoefficientKeys = [
   "tachycardia_burden",
 ] as const
 
+type CoefficientDrawSchema =
+  | "e-dispo-v4.0"
+  | "e-dispo-v4.1-pas5-high-acuity-surrogate"
+
 const defaultCoefficientDrawAssetTimeoutMs = 15_000
 
 export type PooledEmpiricalCoefficientDraw = {
   drawId: number
   source: typeof pooledEmpiricalCoefficientDrawMetadata.source
-  modelId: typeof pooledEmpiricalCoefficientDrawMetadata.modelId
+  modelId: CoefficientDrawSchema
   seed: typeof pooledEmpiricalCoefficientDrawMetadata.seed
   coefficients: PooledEmpiricalCoefficientVector
 }
@@ -149,14 +156,15 @@ export function parsePooledEmpiricalCoefficientDrawCsv(
     .filter((line) => line.length > 0)
 
   const [header, ...rows] = lines
-  if (header !== expectedCoefficientDrawHeader) {
+  const schema = coefficientDrawSchemaForHeader(header)
+  if (schema === null) {
     throw new CoefficientDrawAssetError(
       "schema_mismatch",
       "Coefficient draw CSV header does not match the app schema."
     )
   }
 
-  const draws = rows.map(parseCoefficientDrawRow)
+  const draws = rows.map((row) => parseCoefficientDrawRow(row, schema))
   validatePooledEmpiricalCoefficientDraws(draws)
 
   return draws
@@ -187,7 +195,10 @@ export function validatePooledEmpiricalCoefficientDraws(
         `Unexpected coefficient draw source: ${draw.source}.`
       )
     }
-    if (draw.modelId !== pooledEmpiricalCoefficientDrawMetadata.modelId) {
+    if (
+      draw.modelId !== pooledEmpiricalCoefficientDrawMetadata.modelId &&
+      draw.modelId !== "e-dispo-v4.1-pas5-high-acuity-surrogate"
+    ) {
       throw new CoefficientDrawAssetError(
         "invalid_metadata",
         `Unexpected coefficient draw model ID: ${draw.modelId}.`
@@ -222,10 +233,34 @@ export function validatePooledEmpiricalCoefficientDraws(
         )
       }
     }
+
+    if (draw.modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate") {
+      const coefficient = draw.coefficients.high_acuity_proxy
+      if (!Number.isFinite(coefficient)) {
+        throw new CoefficientDrawAssetError(
+          "invalid_number",
+          "Coefficient draw field is not finite: high_acuity_proxy."
+        )
+      }
+    }
   }
 }
 
-function parseCoefficientDrawRow(row: string): PooledEmpiricalCoefficientDraw {
+function parseCoefficientDrawRow(
+  row: string,
+  schema: CoefficientDrawSchema
+): PooledEmpiricalCoefficientDraw {
+  const cells = row.split(",")
+  const expectedCellCount =
+    schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? 9 : 8
+
+  if (cells.length !== expectedCellCount) {
+    throw new CoefficientDrawAssetError(
+      "invalid_row",
+      "Coefficient draw CSV row does not match the app schema."
+    )
+  }
+
   const [
     drawId,
     intercept,
@@ -234,16 +269,11 @@ function parseCoefficientDrawRow(row: string): PooledEmpiricalCoefficientDraw {
     feverOrTemp,
     vomitingPresent,
     tachycardiaBurden,
-    seed,
-  ] = row.split(",")
-
-  if (row.split(",").length !== 8) {
-    throw new CoefficientDrawAssetError(
-      "invalid_row",
-      "Coefficient draw CSV row does not match the app schema."
-    )
-  }
-
+  ] = cells
+  const highAcuity =
+    schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? cells[7] : undefined
+  const seed =
+    schema === "e-dispo-v4.1-pas5-high-acuity-surrogate" ? cells[8] : cells[7]
   const parsedSeed = Number(seed)
   if (parsedSeed !== pooledEmpiricalCoefficientDrawMetadata.seed) {
     throw new CoefficientDrawAssetError(
@@ -255,7 +285,7 @@ function parseCoefficientDrawRow(row: string): PooledEmpiricalCoefficientDraw {
   return {
     drawId: finiteNumber(drawId, "draw_id"),
     source: pooledEmpiricalCoefficientDrawMetadata.source,
-    modelId: pooledEmpiricalCoefficientDrawMetadata.modelId,
+    modelId: schema,
     seed: pooledEmpiricalCoefficientDrawMetadata.seed,
     coefficients: {
       intercept: finiteNumber(intercept, "intercept"),
@@ -267,8 +297,30 @@ function parseCoefficientDrawRow(row: string): PooledEmpiricalCoefficientDraw {
         tachycardiaBurden,
         "tachycardia_burden"
       ),
+      ...(schema === "e-dispo-v4.1-pas5-high-acuity-surrogate"
+        ? {
+            high_acuity_proxy: finiteNumber(
+              highAcuity,
+              "high_acuity_proxy"
+            ),
+          }
+        : {}),
     },
   }
+}
+
+function coefficientDrawSchemaForHeader(
+  header: string
+): CoefficientDrawSchema | null {
+  if (header === eDispoV40CoefficientDrawHeader) {
+    return "e-dispo-v4.0"
+  }
+
+  if (header === eDispoV41Pas5CoefficientDrawHeader) {
+    return "e-dispo-v4.1-pas5-high-acuity-surrogate"
+  }
+
+  return null
 }
 
 function finiteNumber(value: string | undefined, label: string): number {

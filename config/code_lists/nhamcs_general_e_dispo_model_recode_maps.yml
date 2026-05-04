@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0.0",
+  "name": "nhamcs_general_e_dispo_model_recode_maps",
+  "source": "NHAMCS_2018_2022_ED_public_use_stata_labels",
+  "domain": "general_e_dispo_model_v1_mapping",
+  "review_status": "confirmed_codebook",
+  "source_anchors": [
+    "ed-disposition-web-v3/data/nhamcs/2018/ED2018-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2019/ED2019-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2020/ed2020-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2021/ed2021-stata.zip",
+    "ed-disposition-web-v3/data/nhamcs/2022/ed2022-stata.zip"
+  ],
+  "fields": {
+    "IMMEDR": {
+      "output": "acuity_code",
+      "variable_label": "Immediacy with which patient should be seen (unimputed)",
+      "value_label": "IMMEDRF",
+      "codes": {
+        "-9": "blank",
+        "-8": "unknown",
+        "0": "no_triage_esa_conducts_triage",
+        "1": "immediate",
+        "2": "emergent",
+        "3": "urgent",
+        "4": "semi_urgent",
+        "5": "nonurgent",
+        "7": "no_nursing_triage_esa"
+      }
+    },
+    "AMBTRANSFER": {
+      "output": "arrival_transfer_context",
+      "variable_label": "Was the patient transferred from another hospital or urgent care facility?",
+      "value_label": "AMBTRANF",
+      "codes": {
+        "-9": "blank",
+        "-8": "unknown",
+        "-7": "not_applicable",
+        "1": "yes_transferred_from_hospital_or_urgent_care",
+        "2": "no_not_transferred_from_hospital_or_urgent_care"
+      }
+    }
+  },
+  "derived_fields": {
+    "age_centered_40": {
+      "source": "age",
+      "transform": "age - 40",
+      "notes": "General non-trauma model centering value selected from full-source non-trauma weighted mean age near 39.3."
+    },
+    "hypotension_burden": {
+      "source": "SBP",
+      "transform": "max(100 - SBP, 0) / 10",
+      "notes": "Missing when recoded SBP is missing."
+    }
+  },
+  "notes": "AMBTRANSFER and IMMEDR mappings are confirmed from local Stata value labels for NHAMCS 2018-2022. Explicit unknown, blank, no-triage, and not-applicable levels are preserved for modeling/audit."
+}

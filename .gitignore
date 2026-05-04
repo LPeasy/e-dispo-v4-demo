@@ -14,6 +14,7 @@ dist-ssr
 data/raw/
 data/nhamcs/
 data/mimic/
+output/
 outputs/
 r-lib/
 scripts/nhamcs/r-lib/

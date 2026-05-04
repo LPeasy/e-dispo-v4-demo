@@ -1,6 +1,8 @@
 import type { PooledEmpiricalModelArtifact } from "./pooledEmpiricalModel"
 
 export const E_DISPO_V4_MODEL_ID = "e-dispo-v4.0" as const
+export const E_DISPO_V4_1_PAS5_MODEL_ID =
+  "e-dispo-v4.1-pas5-high-acuity-surrogate" as const
 
 const limitationNote =
   "Dataset-derived from pooled NHAMCS 2018-2022 severe-only pain refit for educational use only; not clinical decision support."
@@ -40,6 +42,30 @@ export const eDispoV4Model: PooledEmpiricalModelArtifact = {
   model_id: E_DISPO_V4_MODEL_ID,
   model_version: "e_dispo_v4_0_pain_severe_20260501",
   pain_monotonicity_verdict: "nonmonotonic_collapsed_to_severe_binary",
+  performance_intervals: [
+    {
+      ci_high: 0.757748157327689,
+      ci_low: 0.670617442965302,
+      estimate: 0.713095417183504,
+      interval_level: 0.95,
+      limitation:
+        "Design-aware apparent interval using pooled NHAMCS survey bootstrap replicate weights and fixed fitted-model predictions. It does not refit the model, correct optimism, validate externally, or prove transportability.",
+      method: "survey_bootstrap_replicate_weights_fixed_apparent_predictions",
+      metric: "auroc",
+      status: "ok",
+    },
+    {
+      ci_high: 0.111065781877554,
+      ci_low: 0.0846318005776967,
+      estimate: 0.0976402591025939,
+      interval_level: 0.95,
+      limitation:
+        "Design-aware apparent interval using pooled NHAMCS survey bootstrap replicate weights and fixed fitted-model predictions. It does not refit the model, correct optimism, validate externally, or prove transportability.",
+      method: "survey_bootstrap_replicate_weights_fixed_apparent_predictions",
+      metric: "brier_score",
+      status: "ok",
+    },
+  ],
   population: "adult men 18-64, ED, non-traumatic abdominal pain",
   posterior_draws_path:
     "outputs/nhamcs_pooled/e_dispo_v4_pain_severe_draws.csv",
@@ -152,6 +178,40 @@ export const eDispoV4Model: PooledEmpiricalModelArtifact = {
   ],
   run_id: "e_dispo_v4_0_pain_severe_20260501",
   status: "versioned_empirical_candidate",
+  validation_artifact_paths: {
+    calibration_by_decile:
+      "outputs/nhamcs_pooled/e_dispo_v4_pain_severe_calibration_by_decile.csv",
+    calibration_plot_data:
+      "outputs/nhamcs_pooled/e_dispo_v4_pain_severe_calibration_plot_data.csv",
+    candidate_refinement_gate:
+      "outputs/nhamcs_pooled/e_dispo_v4_candidate_refinement_gate.csv",
+    full_source_endpoint_screen_calibration:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_endpoint_screen_calibration.csv",
+    full_source_endpoint_screen_missingness:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_endpoint_screen_missingness.csv",
+    full_source_endpoint_screen_performance:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_endpoint_screen_performance.csv",
+    full_source_nontrauma_screen_calibration:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_nontrauma_screen_calibration.csv",
+    full_source_nontrauma_screen_missingness:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_nontrauma_screen_missingness.csv",
+    full_source_nontrauma_screen_performance:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_nontrauma_screen_performance.csv",
+    full_source_scope_screen_report:
+      "outputs/nhamcs_pooled/e_dispo_v4_full_source_scope_screen_report.md",
+    missingness_performance:
+      "outputs/nhamcs_pooled/e_dispo_v4_missingness_performance.csv",
+    optimism_corrected_performance:
+      "outputs/nhamcs_pooled/e_dispo_v4_optimism_corrected_performance.csv",
+    performance_intervals:
+      "outputs/nhamcs_pooled/e_dispo_v4_pain_severe_performance_intervals.csv",
+    subgroup_calibration:
+      "outputs/nhamcs_pooled/e_dispo_v4_subgroup_calibration.csv",
+    subgroup_performance:
+      "outputs/nhamcs_pooled/e_dispo_v4_subgroup_performance.csv",
+    transportability_track:
+      "outputs/nhamcs_pooled/e_dispo_v4_transportability_track.csv",
+  },
 }
 
 export const activeEmpiricalModel = eDispoV4Model

@@ -24,7 +24,7 @@ import { activeEmpiricalModel } from "@/data/eDispoV4Model";
 import { modelMetadata } from "@/model/modelParameters";
 
 const excludedVariables = [
-  "AAP-3 acuity-proxy concept",
+  "PAS-5 patient-perceived acuity proxy",
   "SBP",
   "Broad pain region",
   "Onset/duration",
@@ -33,21 +33,38 @@ const excludedVariables = [
 
 const limitations = [
   "Performance metrics are apparent/exported review metrics and do not establish external transportability.",
-  "The model is intentionally compact and omits the AAP-3 acuity-proxy concept, SBP, broad pain region, onset/duration, and pain pattern.",
+  "The model is intentionally compact and omits the PAS-5 patient-perceived acuity proxy, SBP, broad pain region, onset/duration, and pain pattern.",
   "Observed pain and observed HR are required, so estimates are withheld when either required observed field is unavailable.",
   "Pain is collapsed to severe versus non-severe. Mild and moderate are the non-severe reference; this does not claim a monotonic pain dose-response.",
   "Simulation intervals represent coefficient uncertainty in the app method, not individual-level certainty.",
   "The endpoint is limited to same-hospital inpatient admission versus routine ED home disposition after exclusions.",
+  "PAS-5 is not observed in NHAMCS. The inactive v4.1 screen uses IMMEDR only as a clinician-acuity surrogate and must not be read as direct evidence about patient self-assessment.",
 ];
 
 const futureValidationItems = [
-  "Add external/source-specific validation and subgroup performance checks.",
-  "Add interval estimates for AUROC, Brier score, calibration slope, and calibration-in-the-large.",
-  "Add grouped calibration tables and plots using the locked endpoint definition.",
-  "Review missingness patterns for observed pain and observed HR before any broader use.",
-  "Compare AAP-3 against real triage acuity fields such as NHAMCS IMMEDR or MIMIC triage acuity before any risk-model use.",
+  "Review the new grouped calibration, subgroup, missingness, fixed-prediction interval, and optimism-correction artifacts as internal educational validation only.",
+  "Build an adequate external/source-specific validation cohort before making any transportability claim.",
+  "Review race/ethnicity, payer, region, and MSA subgroup rows; small payer levels remain sparse-cell or no-outcome blockers.",
+  "Add subgroup interval estimates for calibration, AUROC, and Brier where event counts and survey design support them.",
+  "Review the PAS-5 IMMEDR surrogate screen and keep PAS-5 explanatory unless every prespecified gate passes.",
   "Evaluate any reintroduction of SBP, broad pain region, onset/duration, or pain pattern as separate empirical work.",
 ];
+
+const formatPerformanceInterval = (
+  metric: "auroc" | "brier_score"
+): string => {
+  const row = activeEmpiricalModel.performance_intervals?.find(
+    (interval) => interval.metric === metric
+  );
+
+  if (!row) {
+    return "Not available";
+  }
+
+  const level = Math.round(row.interval_level * 100);
+
+  return `${row.ci_low.toFixed(6)} to ${row.ci_high.toFixed(6)} (${level}% apparent)`;
+};
 
 export function TechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }) {
   return (
@@ -241,8 +258,10 @@ export function TechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
               label="Dataset sources"
               value={activeEmpiricalModel.dataset_sources.join(", ")}
             />
-            <DefinitionRow label="Complete-case N" value="3,805" />
-            <DefinitionRow label="Admissions" value="459" />
+            <DefinitionRow label="Strict binary pooled N" value="3,805" />
+            <DefinitionRow label="Strict binary admissions" value="459" />
+            <DefinitionRow label="Model fit complete-case N" value="2,674" />
+            <DefinitionRow label="Model fit admissions" value="307" />
           </CardContent>
         </Card>
       </section>
@@ -256,7 +275,15 @@ export function TechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
         <CardContent>
           <div className="grid grid-cols-3 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
             <ResultMetric label="AUROC" value="0.713095417183504" />
+            <ResultMetric
+              label="AUROC apparent interval"
+              value={formatPerformanceInterval("auroc")}
+            />
             <ResultMetric label="Brier" value="0.0976402591025939" />
+            <ResultMetric
+              label="Brier apparent interval"
+              value={formatPerformanceInterval("brier_score")}
+            />
             <ResultMetric
               label="Observed prevalence"
               value="0.117546517397583"
@@ -265,7 +292,7 @@ export function TechnicalDocsPage({ setPage }: { setPage: (page: Page) => void }
             <ResultMetric label="Calibration slope" value="1.00000000000481" />
             <ResultMetric
               label="Complete-case N / admissions"
-              value="3,805 / 459"
+              value="2,674 / 307"
             />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 max-[760px]:grid-cols-1">

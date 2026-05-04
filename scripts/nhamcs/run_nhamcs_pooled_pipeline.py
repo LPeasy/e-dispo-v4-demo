@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,19 @@ DEFAULT_FINAL_REDUCED_GATE_SCRIPT = Path("scripts/nhamcs/nhamcs_final_reduced_mo
 DEFAULT_VOMITING_GATE_SCRIPT = Path("scripts/nhamcs/nhamcs_vomiting_validation.R")
 DEFAULT_TACHYCARDIA_GATE_SCRIPT = Path("scripts/nhamcs/nhamcs_tachycardia_burden_validation.R")
 DEFAULT_HEMATEMESIS_GATE_SCRIPT = Path("scripts/nhamcs/nhamcs_hematemesis_validation.R")
+DEFAULT_E_DISPO_V4_PAIN_SEVERE_SCRIPT = Path("scripts/nhamcs/nhamcs_e_dispo_v4_pain_severe_validation.R")
+DEFAULT_FULL_SOURCE_NONTRAUMA_ADMIT_MODEL_SCRIPT = Path(
+    "scripts/nhamcs/nhamcs_full_source_nontrauma_admit_model.R"
+)
+DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT = Path(
+    "scripts/nhamcs/nhamcs_general_e_dispo_model_v1.R"
+)
+DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT = Path(
+    "scripts/nhamcs/nhamcs_general_e_dispo_model_v1_plus_sex.R"
+)
+DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT = Path(
+    "scripts/nhamcs/full_source_nontrauma_variable_screen.py"
+)
 POOLED_MODEL_SPECS: list[dict[str, Any]] = [
     {
         "model_id": "pooled_primary_reduced",
@@ -115,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     cohort_path = args.output_dir / build_pooled_cohort.pooled_filename(years)
     fit_status = run_pooled_fit(
         cohort_path=cohort_path,
+        config_path=args.config,
         output_dir=args.output_dir,
         years=years,
         survey_mode=args.survey_mode,
@@ -127,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
 def run_pooled_fit(
     *,
     cohort_path: Path,
+    config_path: Path,
     output_dir: Path,
     years: list[int],
     survey_mode: str,
@@ -187,6 +203,51 @@ def run_pooled_fit(
         hematemesis_result = run_hematemesis_gate(cohort_path, output_dir, survey_status["rscript_path"])
         if hematemesis_result.returncode != 0:
             write_hematemesis_gate_blocker(output_dir, hematemesis_result)
+            return 2 if survey_mode == "require" else 0
+        e_dispo_v4_result = run_e_dispo_v4_pain_severe_validation(
+            cohort_path,
+            output_dir,
+            survey_status["rscript_path"],
+        )
+        if e_dispo_v4_result.returncode != 0:
+            write_e_dispo_v4_pain_severe_blocker(output_dir, e_dispo_v4_result)
+            return 2 if survey_mode == "require" else 0
+        full_source_nontrauma_path = output_dir / build_pooled_cohort.full_source_scope_filename(
+            "full_source_nontrauma",
+            years,
+        )
+        full_source_admit_result = run_full_source_nontrauma_admit_model(
+            full_source_nontrauma_path,
+            output_dir,
+            survey_status["rscript_path"],
+        )
+        if full_source_admit_result.returncode != 0:
+            write_full_source_nontrauma_admit_model_blocker(output_dir, full_source_admit_result)
+            return 2 if survey_mode == "require" else 0
+        general_model_result = run_general_e_dispo_model_v1(
+            full_source_nontrauma_path,
+            output_dir,
+            survey_status["rscript_path"],
+        )
+        if general_model_result.returncode != 0:
+            write_general_e_dispo_model_v1_blocker(output_dir, general_model_result)
+            return 2 if survey_mode == "require" else 0
+        plus_sex_result = run_general_e_dispo_model_v1_plus_sex(
+            full_source_nontrauma_path,
+            output_dir,
+            survey_status["rscript_path"],
+        )
+        if plus_sex_result.returncode != 0:
+            write_general_e_dispo_model_v1_plus_sex_blocker(output_dir, plus_sex_result)
+            return 2 if survey_mode == "require" else 0
+        variable_screen_result = run_full_source_nontrauma_variable_screen(
+            config_path,
+            full_source_nontrauma_path,
+            output_dir,
+            years,
+        )
+        if variable_screen_result.returncode != 0:
+            write_full_source_nontrauma_variable_screen_blocker(output_dir, variable_screen_result)
             return 2 if survey_mode == "require" else 0
         fit_models.remove_stale_blocker(output_dir)
         return 0
@@ -369,6 +430,159 @@ def run_hematemesis_gate(cohort_path: Path, output_dir: Path, rscript: str) -> s
     )
 
 
+def run_e_dispo_v4_pain_severe_validation(
+    cohort_path: Path,
+    output_dir: Path,
+    rscript: str,
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_E_DISPO_V4_PAIN_SEVERE_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[rscript, str(DEFAULT_E_DISPO_V4_PAIN_SEVERE_SCRIPT), str(cohort_path), str(output_dir)],
+            returncode=2,
+            stdout="",
+            stderr=f"e-dispo-v4.0 severe-pain validation script is missing: {DEFAULT_E_DISPO_V4_PAIN_SEVERE_SCRIPT}",
+        )
+    return subprocess.run(
+        [rscript, str(DEFAULT_E_DISPO_V4_PAIN_SEVERE_SCRIPT), str(cohort_path), str(output_dir)],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+
+
+def run_full_source_nontrauma_admit_model(
+    full_source_nontrauma_path: Path,
+    output_dir: Path,
+    rscript: str,
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_FULL_SOURCE_NONTRAUMA_ADMIT_MODEL_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[
+                rscript,
+                str(DEFAULT_FULL_SOURCE_NONTRAUMA_ADMIT_MODEL_SCRIPT),
+                str(full_source_nontrauma_path),
+                str(output_dir),
+            ],
+            returncode=2,
+            stdout="",
+            stderr=(
+                "Full-source non-trauma admit candidate model script is missing: "
+                f"{DEFAULT_FULL_SOURCE_NONTRAUMA_ADMIT_MODEL_SCRIPT}"
+            ),
+        )
+    return subprocess.run(
+        [rscript, str(DEFAULT_FULL_SOURCE_NONTRAUMA_ADMIT_MODEL_SCRIPT), str(full_source_nontrauma_path), str(output_dir)],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+
+
+def run_general_e_dispo_model_v1(
+    full_source_nontrauma_path: Path,
+    output_dir: Path,
+    rscript: str,
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[
+                rscript,
+                str(DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT),
+                str(full_source_nontrauma_path),
+                str(output_dir),
+            ],
+            returncode=2,
+            stdout="",
+            stderr=(
+                "General E-Dispo model v1 script is missing: "
+                f"{DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT}"
+            ),
+        )
+    return subprocess.run(
+        [rscript, str(DEFAULT_GENERAL_E_DISPO_MODEL_V1_SCRIPT), str(full_source_nontrauma_path), str(output_dir)],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+        check=False,
+    )
+
+
+def run_general_e_dispo_model_v1_plus_sex(
+    full_source_nontrauma_path: Path,
+    output_dir: Path,
+    rscript: str,
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[
+                rscript,
+                str(DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT),
+                str(full_source_nontrauma_path),
+                str(output_dir),
+            ],
+            returncode=2,
+            stdout="",
+            stderr=(
+                "General E-Dispo model v1 plus-sex sensitivity script is missing: "
+                f"{DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT}"
+            ),
+        )
+    return subprocess.run(
+        [rscript, str(DEFAULT_GENERAL_E_DISPO_MODEL_V1_PLUS_SEX_SCRIPT), str(full_source_nontrauma_path), str(output_dir)],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+        check=False,
+    )
+
+
+def run_full_source_nontrauma_variable_screen(
+    config_path: Path,
+    full_source_nontrauma_path: Path,
+    output_dir: Path,
+    years: list[int],
+) -> subprocess.CompletedProcess[str]:
+    if not DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT.exists():
+        return subprocess.CompletedProcess(
+            args=[
+                sys.executable,
+                str(DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT),
+                "--config",
+                str(config_path),
+                "--analytic-cohort",
+                str(full_source_nontrauma_path),
+                "--output-dir",
+                str(output_dir),
+            ],
+            returncode=2,
+            stdout="",
+            stderr=(
+                "Full-source non-trauma variable screen script is missing: "
+                f"{DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT}"
+            ),
+        )
+    return subprocess.run(
+        [
+            sys.executable,
+            str(DEFAULT_FULL_SOURCE_NONTRAUMA_VARIABLE_SCREEN_SCRIPT),
+            "--config",
+            str(config_path),
+            "--analytic-cohort",
+            str(full_source_nontrauma_path),
+            "--output-dir",
+            str(output_dir),
+            "--years",
+            *[str(year) for year in years],
+        ],
+        capture_output=True,
+        text=True,
+        timeout=1200,
+        check=False,
+    )
+
+
 def write_fever_gate_blocker(output_dir: Path, fever_result: subprocess.CompletedProcess[str]) -> None:
     build_cohort.write_blocker_report(
         output_dir / "fever_sparse_cell_blocker_report.md",
@@ -454,6 +668,110 @@ def write_hematemesis_gate_blocker(output_dir: Path, hematemesis_result: subproc
     )
 
 
+def write_e_dispo_v4_pain_severe_blocker(
+    output_dir: Path,
+    e_dispo_v4_result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "e_dispo_v4_pain_severe_blocker_report.md",
+        source="NHAMCS pooled e-dispo-v4.0 severe-pain validation artifact pass",
+        blockers=["e-dispo-v4.0 severe-pain calibration/performance artifact pass did not complete."],
+        outputs_written=[
+            str(output_dir / "e_dispo_v4_pain_severe_calibration.csv"),
+            str(output_dir / "e_dispo_v4_pain_severe_leave_one_year_out.csv"),
+        ],
+        calibration_or_fitting_blockers=[
+            e_dispo_v4_result.stdout.strip()[-2000:],
+            e_dispo_v4_result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the e-dispo-v4.0 severe-pain validation error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
+def write_full_source_nontrauma_admit_model_blocker(
+    output_dir: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "full_source_nontrauma_admit_model_blocker_report.md",
+        source="NHAMCS full-source non-trauma admit candidate model",
+        blockers=["Full-source non-trauma admit candidate model did not complete."],
+        outputs_written=[
+            str(output_dir / "full_source_nontrauma_admit_model_coefficients.csv"),
+            str(output_dir / "full_source_nontrauma_admit_model_performance.csv"),
+        ],
+        calibration_or_fitting_blockers=[
+            result.stdout.strip()[-2000:],
+            result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the candidate-model fitting error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
+def write_general_e_dispo_model_v1_blocker(
+    output_dir: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "general_e_dispo_model_v1_blocker_report.md",
+        source="NHAMCS general-E-Dispo-model-v1 parallel model artifact",
+        blockers=["general-E-Dispo-model-v1 did not complete."],
+        outputs_written=[
+            str(output_dir / "general_e_dispo_model_v1_coefficients.csv"),
+            str(output_dir / "general_e_dispo_model_v1_performance.csv"),
+            str(output_dir / "general_e_dispo_model_v1_model_spec.json"),
+        ],
+        calibration_or_fitting_blockers=[
+            result.stdout.strip()[-2000:],
+            result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the general-model fitting error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
+def write_general_e_dispo_model_v1_plus_sex_blocker(
+    output_dir: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "general_e_dispo_model_v1_plus_sex_blocker_report.md",
+        source="NHAMCS general-E-Dispo-model-v1-plus-sex sensitivity artifact",
+        blockers=["general-E-Dispo-model-v1-plus-sex did not complete."],
+        outputs_written=[
+            str(output_dir / "general_e_dispo_model_v1_plus_sex_coefficients.csv"),
+            str(output_dir / "general_e_dispo_model_v1_plus_sex_performance.csv"),
+            str(output_dir / "general_e_dispo_model_v1_plus_sex_model_spec.json"),
+            str(output_dir / "general_e_dispo_model_v1_sex_sensitivity_comparison.csv"),
+        ],
+        calibration_or_fitting_blockers=[
+            result.stdout.strip()[-2000:],
+            result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the plus-sex sensitivity fitting error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
+def write_full_source_nontrauma_variable_screen_blocker(
+    output_dir: Path,
+    result: subprocess.CompletedProcess[str],
+) -> None:
+    build_cohort.write_blocker_report(
+        output_dir / "full_source_nontrauma_variable_screen_blocker_report.md",
+        source="NHAMCS full-source non-trauma variable screen",
+        blockers=["Full-source non-trauma variable screen did not complete."],
+        outputs_written=[
+            str(output_dir / "full_source_nontrauma_analytic_variable_correlations.csv"),
+            str(output_dir / "full_source_nontrauma_raw_variable_correlations.csv"),
+            str(output_dir / "full_source_nontrauma_transfer_variable_correlations.csv"),
+        ],
+        calibration_or_fitting_blockers=[
+            result.stdout.strip()[-2000:],
+            result.stderr.strip()[-4000:],
+        ],
+        next_action="Resolve the variable-screen error, then rerun scripts/nhamcs/run_nhamcs_pooled_pipeline.py.",
+    )
+
+
 def write_pooled_survey_blocker(output_dir: Path, survey_status: dict[str, Any]) -> None:
     build_cohort.write_blocker_report(
         output_dir / "blocker_report.md",
@@ -523,6 +841,59 @@ def write_pipeline_summary(output_dir: Path, cohort_path: Path, years: list[int]
         "vomiting_promotion_gate_status": read_vomiting_gate_status(output_dir / "vomiting_gate_decision.csv"),
         "tachycardia_burden_activation_status": read_final_reduced_gate_status(output_dir / "tachycardia_burden_gate_decision.csv"),
         "hematemesis_promotion_gate_status": read_hematemesis_gate_status(output_dir / "hematemesis_gate_decision.csv"),
+        "e_dispo_v4_performance_interval_status": read_e_dispo_v4_interval_status(
+            output_dir / "e_dispo_v4_pain_severe_performance_intervals.csv"
+        ),
+        "e_dispo_v4_subgroup_validation_status": read_status_set(
+            output_dir / "e_dispo_v4_subgroup_performance.csv"
+        ),
+        "e_dispo_v4_optimism_correction_status": read_status_set(
+            output_dir / "e_dispo_v4_optimism_corrected_performance.csv"
+        ),
+        "e_dispo_v4_transportability_status": read_status_set(
+            output_dir / "e_dispo_v4_transportability_track.csv"
+        ),
+        "e_dispo_v4_candidate_refinement_status": read_status_set(
+            output_dir / "e_dispo_v4_candidate_refinement_gate.csv",
+            status_column="promotion_status",
+        ),
+        "e_dispo_v4_full_source_endpoint_screen_status": read_status_set(
+            output_dir / "e_dispo_v4_full_source_endpoint_screen_performance.csv"
+        ),
+        "e_dispo_v4_full_source_nontrauma_screen_status": read_status_set(
+            output_dir / "e_dispo_v4_full_source_nontrauma_screen_performance.csv"
+        ),
+        "full_source_nontrauma_admit_candidate_model_status": read_status_set(
+            output_dir / "full_source_nontrauma_admit_model_performance.csv"
+        ),
+        "general_e_dispo_model_v1_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_performance.csv"
+        ),
+        "general_e_dispo_model_v1_interval_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_performance_intervals.csv"
+        ),
+        "general_e_dispo_model_v1_optimism_correction_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_optimism_corrected_performance.csv"
+        ),
+        "general_e_dispo_model_v1_plus_sex_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_plus_sex_performance.csv"
+        ),
+        "general_e_dispo_model_v1_plus_sex_interval_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_plus_sex_performance_intervals.csv"
+        ),
+        "general_e_dispo_model_v1_plus_sex_optimism_correction_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_plus_sex_optimism_corrected_performance.csv"
+        ),
+        "general_e_dispo_model_v1_sex_sensitivity_comparison_status": read_status_set(
+            output_dir / "general_e_dispo_model_v1_sex_sensitivity_comparison.csv"
+        ),
+        "full_source_nontrauma_variable_screen_status": read_multi_status_set(
+            [
+                output_dir / "full_source_nontrauma_analytic_variable_correlations.csv",
+                output_dir / "full_source_nontrauma_raw_variable_correlations.csv",
+                output_dir / "full_source_nontrauma_transfer_variable_correlations.csv",
+            ]
+        ),
         "no_dataset_derived_promotion": True,
         "no_v4_adoption_claim": True,
     }
@@ -587,6 +958,50 @@ def read_hematemesis_gate_status(path: Path) -> str:
     if rows.empty:
         return "not_evaluated"
     return str(rows.iloc[0])
+
+
+def read_e_dispo_v4_interval_status(path: Path) -> str:
+    if not path.exists():
+        return "not_run"
+    frame = pd.read_csv(path)
+    if frame.empty or "status" not in frame.columns:
+        return "not_evaluated"
+    statuses = {str(value) for value in frame["status"].dropna()}
+    if statuses == {"ok"}:
+        return "ok"
+    return ";".join(sorted(statuses)) or "not_evaluated"
+
+
+def read_status_set(path: Path, status_column: str = "status") -> str:
+    if not path.exists():
+        return "not_run"
+    frame = pd.read_csv(path)
+    if frame.empty or status_column not in frame.columns:
+        return "not_evaluated"
+    statuses = {str(value) for value in frame[status_column].dropna()}
+    if not statuses:
+        return "not_evaluated"
+    if statuses == {"ok"}:
+        return "ok"
+    return ";".join(sorted(statuses))
+
+
+def read_multi_status_set(paths: list[Path], status_column: str = "status") -> str:
+    statuses: set[str] = set()
+    existing = [path for path in paths if path.exists()]
+    if not existing:
+        return "not_run"
+    for path in existing:
+        frame = pd.read_csv(path)
+        if frame.empty or status_column not in frame.columns:
+            statuses.add("not_evaluated")
+            continue
+        statuses.update(str(value) for value in frame[status_column].dropna())
+    if not statuses:
+        return "not_evaluated"
+    if statuses == {"ok"}:
+        return "ok"
+    return ";".join(sorted(statuses))
 
 
 if __name__ == "__main__":

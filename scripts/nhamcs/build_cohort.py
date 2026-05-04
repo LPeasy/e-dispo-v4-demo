@@ -260,15 +260,19 @@ def cohort_masks(df: pd.DataFrame, config: dict[str, Any]) -> dict[str, pd.Serie
     male_age = df[variables["sex"]].isin(codes["male"]) & df[variables["age"]].between(
         18, 64, inclusive="both"
     )
-    abdominal = male_age & any_column_matches(
+    abdominal_any_rfv = any_column_matches(
         df,
         variables["reasonForVisit"],
         [row["stored_code"] for row in code_lists.load_code_list("nhamcs_abdominal_pain_rfv")["codes"]],
     )
-    non_trauma = abdominal & df[variables["trauma"]].isin(codes["nonTrauma"])
+    abdominal = male_age & abdominal_any_rfv
+    non_trauma_all = df[variables["trauma"]].isin(codes["nonTrauma"])
+    non_trauma = abdominal & non_trauma_all
     return {
         "all_records": all_records,
         "male_age_18_64": male_age,
+        "abdominal_pain_any_rfv": abdominal_any_rfv,
+        "non_trauma_all": non_trauma_all,
         "abdominal_pain_rfv": abdominal,
         "non_trauma": non_trauma,
     }
@@ -331,6 +335,7 @@ def build_model_frame(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFra
     out["psu"] = frame["CPSUM"] if "CPSUM" in frame.columns else np.nan
     out["age"] = numeric_or_nan(frame[variables["age"]])
     out["age_band"] = out["age"].map(age_band)
+    out["age_band_full"] = out["age"].map(age_band_full)
 
     pain_col = predictors.get("painScale", "PAINSCALE")
     if pain_col in frame.columns:
@@ -415,6 +420,25 @@ def age_band(value: Any) -> str | None:
     if 55 <= age <= 64:
         return "55_64"
     return None
+
+
+def age_band_full(value: Any) -> str | None:
+    if pd.isna(value):
+        return None
+    age = int(value)
+    if age < 18:
+        return "under_18"
+    if 18 <= age <= 29:
+        return "18_29"
+    if 30 <= age <= 44:
+        return "30_44"
+    if 45 <= age <= 54:
+        return "45_54"
+    if 55 <= age <= 64:
+        return "55_64"
+    if 65 <= age <= 74:
+        return "65_74"
+    return "75_plus"
 
 
 def cohort_flow_rows(
@@ -618,9 +642,12 @@ def missingness_rows(frame: pd.DataFrame) -> list[dict[str, Any]]:
         "fever_or_temp",
         "temp",
         "acuity",
+        "acuity_code",
+        "arrival_transfer_context",
         "HR",
         "tachycardia_burden",
         "SBP",
+        "hypotension_burden",
     ]
     rows: list[dict[str, Any]] = []
     for endpoint in sorted(frame["endpoint"].dropna().unique()):

@@ -3,6 +3,7 @@ export type PooledEmpiricalEvidenceTier = "dataset_derived"
 export type PooledEmpiricalModelId =
   | "pooled_empirical_v2_age_pain_fever_vomiting_tachycardia"
   | "e-dispo-v4.0"
+  | "e-dispo-v4.1-pas5-high-acuity-surrogate"
 
 export type PooledEmpiricalPredictor = {
   center_beta: number
@@ -21,6 +22,18 @@ export type PooledEmpiricalPredictor = {
     | "fever_or_temp"
     | "vomiting_present"
     | "tachycardia_burden"
+    | "high_acuity_proxy"
+}
+
+export type PooledEmpiricalPerformanceInterval = {
+  ci_high: number
+  ci_low: number
+  estimate: number
+  interval_level: number
+  limitation: string
+  method: "survey_bootstrap_replicate_weights_fixed_apparent_predictions"
+  metric: "auroc" | "brier_score"
+  status: "ok"
 }
 
 export type PooledEmpiricalModelArtifact = {
@@ -59,6 +72,7 @@ export type PooledEmpiricalModelArtifact = {
   pain_monotonicity_verdict:
     | "nonmonotonic_flexible_only"
     | "nonmonotonic_collapsed_to_severe_binary"
+  performance_intervals?: PooledEmpiricalPerformanceInterval[]
   population: string
   posterior_draws_path: string
   predictor_evidence_tiers: Array<{
@@ -73,10 +87,29 @@ export type PooledEmpiricalModelArtifact = {
       | "fever_or_temp"
       | "vomiting_present"
       | "tachycardia_burden"
+      | "high_acuity_proxy"
   }>
   predictors: PooledEmpiricalPredictor[]
   run_id: string
   status: "reduced_empirical_candidate" | "versioned_empirical_candidate"
+  validation_artifact_paths?: {
+    calibration_by_decile: string
+    calibration_plot_data: string
+    candidate_refinement_gate?: string
+    full_source_endpoint_screen_calibration?: string
+    full_source_endpoint_screen_missingness?: string
+    full_source_endpoint_screen_performance?: string
+    full_source_nontrauma_screen_calibration?: string
+    full_source_nontrauma_screen_missingness?: string
+    full_source_nontrauma_screen_performance?: string
+    full_source_scope_screen_report?: string
+    missingness_performance?: string
+    optimism_corrected_performance?: string
+    performance_intervals: string
+    subgroup_calibration?: string
+    subgroup_performance?: string
+    transportability_track?: string
+  }
 }
 
 export const pooledEmpiricalModel: PooledEmpiricalModelArtifact = {

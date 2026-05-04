@@ -24,13 +24,15 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { AgeInputField, BinaryField, PageHeader, ReadinessRow, SimulationCountToggle } from "@/components/AppShared";
+import { Pas5AcuityInput } from "@/components/Pas5AcuityInput";
 import type { ModelRun, ReadinessState, SimulationCount } from "@/appTypes";
 import { clampNumber, isPainSeverity, painOptions } from "@/appUtils";
 import { formatPercent } from "@/model/logisticModel";
+import type { Pas5Inputs } from "@/model/aap3Acuity";
 import { tachycardiaBurdenFromHeartRate } from "@/model/pooledEmpiricalPrediction";
 import type { BinarySymptom, PainSeverity, SimulationResult } from "@/model/types";
 import type { SimulationWorkerState } from "@/model/useSimulationWorker";
-import { valueLabels } from "@/model/worksheet";
+import { formatPas5Inputs, valueLabels } from "@/model/worksheet";
 
 type ProbabilityInterval = [number, number];
 type HistogramAxis = {
@@ -69,6 +71,8 @@ export function CustomerPreviewPage({
   setFever,
   vomiting,
   setVomiting,
+  pas5,
+  setPas5,
   sampleCount,
   setSampleCount,
   readinessState,
@@ -92,6 +96,8 @@ export function CustomerPreviewPage({
   setFever: (value: BinarySymptom) => void;
   vomiting: BinarySymptom;
   setVomiting: (value: BinarySymptom) => void;
+  pas5: Pas5Inputs;
+  setPas5: (value: Pas5Inputs) => void;
   sampleCount: SimulationCount;
   setSampleCount: (value: SimulationCount) => void;
   readinessState: ReadinessState;
@@ -278,6 +284,11 @@ export function CustomerPreviewPage({
                     </FieldDescription>
                   ) : null}
                 </Field>
+                <Pas5AcuityInput
+                  value={pas5}
+                  onChange={setPas5}
+                  idPrefix="customer-pas5"
+                />
                 <FieldSet>
                   <FieldLegend>Simulation runs</FieldLegend>
                   <SimulationCountToggle
@@ -339,6 +350,7 @@ export function CustomerPreviewPage({
                 painSeverity={painSeverity}
                 fever={fever}
                 vomiting={vomiting}
+                pas5={pas5}
                 heartRateBpm={heartRateBpm}
                 sampleCount={sampleCount}
               />
@@ -496,6 +508,7 @@ function CustomerInputPreview({
   painSeverity,
   fever,
   vomiting,
+  pas5,
   heartRateBpm,
   sampleCount,
 }: {
@@ -503,6 +516,7 @@ function CustomerInputPreview({
   painSeverity: PainSeverity;
   fever: BinarySymptom;
   vomiting: BinarySymptom;
+  pas5: Pas5Inputs;
   heartRateBpm: number | null;
   sampleCount: SimulationCount;
 }) {
@@ -511,6 +525,7 @@ function CustomerInputPreview({
     ["Pain", valueLabels[painSeverity]],
     ["Fever", `${valueLabels[fever]} (100.4°F or higher)`],
     ["Vomiting", valueLabels[vomiting]],
+    ["PAS-5", formatPas5Inputs(pas5)],
     ["Observed HR", heartRateBpm === null ? "Required" : `${heartRateBpm} bpm`],
     ["Simulation runs", sampleCount.toLocaleString()],
   ];
@@ -1665,6 +1680,7 @@ function CustomerInputReceipt({ run }: { run: ModelRun }) {
     ["Pain", valueLabels[run.inputs.painSeverity]],
     ["Fever", `${valueLabels[run.inputs.fever]} (100.4°F or higher)`],
     ["Vomiting", valueLabels[run.inputs.vomiting]],
+    ["PAS-5", formatPas5Inputs(run.inputs.pas5)],
     ["Observed HR", `${run.heartRateBpm} bpm`],
     ["Simulation runs", run.sampleCount.toLocaleString()],
   ];
@@ -1672,7 +1688,7 @@ function CustomerInputReceipt({ run }: { run: ModelRun }) {
   return (
     <div className="rounded-lg border border-border bg-background p-5">
       <p className="font-medium">Inputs used for this range view</p>
-      <div className="mt-4 grid grid-cols-6 gap-2 max-[900px]:grid-cols-3 max-[520px]:grid-cols-2">
+      <div className="mt-4 grid grid-cols-7 gap-2 max-[1080px]:grid-cols-4 max-[720px]:grid-cols-2">
         {items.map(([label, value]) => (
           <div
             key={label}

@@ -1,5 +1,10 @@
-import { activeEmpiricalModel, E_DISPO_V4_MODEL_ID } from "@/data/eDispoV4Model"
+import {
+  activeEmpiricalModel,
+  E_DISPO_V4_1_PAS5_MODEL_ID,
+  E_DISPO_V4_MODEL_ID,
+} from "@/data/eDispoV4Model"
 import { validatePooledEmpiricalModelArtifact } from "@/data/empiricalArtifacts"
+import { calculatePas5Acuity, type Pas5Result } from "./aap3Acuity"
 import { clampProbability, logistic } from "./logisticModel"
 import type {
   BinarySymptom,
@@ -19,6 +24,7 @@ export type PooledEmpiricalPredictionInputs = {
   fever: BinarySymptom
   vomiting: BinarySymptom
   heartRateBpm: number | null
+  pas5?: Pas5Result | null
 }
 
 type CoefficientKey =
@@ -30,6 +36,7 @@ type CoefficientKey =
   | "fever_or_temp"
   | "vomiting_present"
   | "tachycardia_burden"
+  | "high_acuity_proxy"
 
 const empiricalTermLabels: Record<CoefficientKey, string> = {
   intercept: "Intercept",
@@ -40,6 +47,8 @@ const empiricalTermLabels: Record<CoefficientKey, string> = {
   fever_or_temp: "Fever or temperature",
   vomiting_present: "Vomiting present",
   tachycardia_burden: "Tachycardia burden",
+  high_acuity_proxy:
+    "Patient-perceived acuity proxy: high-acuity surrogate",
 }
 
 export function toPooledEmpiricalPredictionInputs(
@@ -53,6 +62,7 @@ export function toPooledEmpiricalPredictionInputs(
     fever: inputs.fever,
     vomiting: inputs.vomiting,
     heartRateBpm,
+    pas5: calculatePas5Acuity(inputs.pas5),
   }
 }
 
@@ -116,7 +126,10 @@ export function activePooledEmpiricalTermsForInputs(
     },
   ]
 
-  if (artifact.model_id === E_DISPO_V4_MODEL_ID) {
+  if (
+    artifact.model_id === E_DISPO_V4_MODEL_ID ||
+    artifact.model_id === E_DISPO_V4_1_PAS5_MODEL_ID
+  ) {
     if (inputs.painSeverity === "severe") {
       terms.push(termFromCoefficient("pain_severe", coefficients))
     } else if (
@@ -132,6 +145,16 @@ export function activePooledEmpiricalTermsForInputs(
       terms.push(termFromCoefficient("pain_bin3[severe]", coefficients))
     } else if (inputs.painSeverity !== "moderate") {
       throw new Error("Pain severity must be mild, moderate, or severe.")
+    }
+  }
+
+  if (artifact.model_id === E_DISPO_V4_1_PAS5_MODEL_ID) {
+    if (!inputs.pas5) {
+      throw new Error("PAS-5 is required for e-dispo-v4.1-pas5-high-acuity-surrogate.")
+    }
+
+    if (inputs.pas5.highAcuityProxy) {
+      terms.push(termFromCoefficient("high_acuity_proxy", coefficients))
     }
   }
 
@@ -228,6 +251,10 @@ function coefficientKeyForPredictor(
 
   if (term === "tachycardia_burden" && level === "per_10_bpm_over_100") {
     return "tachycardia_burden"
+  }
+
+  if (term === "high_acuity_proxy" && level === "1") {
+    return "high_acuity_proxy"
   }
 
   throw new Error(`Unsupported pooled empirical predictor: ${term}.${level}`)

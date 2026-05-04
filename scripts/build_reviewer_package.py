@@ -72,7 +72,7 @@ DOCUMENTATION_FILES = [
     ("docs/validation/nausea-candidate-screen.md", "nausea-candidate-screen.md"),
     ("docs/validation/uncertainty-simulation-method.md", "uncertainty-simulation-method.md"),
     ("docs/validation/validation-dossier-readme.md", "validation-dossier-readme.md"),
-    ("docs/validation/aap3-validation-workflow.md", "aap3-validation-workflow.md"),
+    ("docs/validation/pas5-acuity-candidate-screen.md", "pas5-acuity-candidate-screen.md"),
     ("docs/validation/deficiency-review-next-phase.md", "deficiency-review-next-phase.md"),
     ("README.md", "app-readme.md"),
 ]

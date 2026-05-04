@@ -19,6 +19,10 @@ import build_yearly_cohorts
 DEFAULT_CONFIG = build_yearly_cohorts.DEFAULT_CONFIG
 DEFAULT_YEARLY_OUTPUT_DIR = build_yearly_cohorts.DEFAULT_OUTPUT_DIR
 DEFAULT_OUTPUT_DIR = Path("outputs/nhamcs_pooled")
+FULL_SOURCE_SCOPE_FILES = {
+    "full_source_endpoint": "full_source_endpoint_cohort_{year}.csv",
+    "full_source_nontrauma": "full_source_nontrauma_cohort_{year}.csv",
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -55,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
 
     write_combined_yearly_outputs(args.yearly_output_dir, args.output_dir, years)
     write_metadata(args.output_dir, config, years, pooled, output_path)
+    write_full_source_scope_outputs(args.yearly_output_dir, args.output_dir, years)
     write_pooled_vs_2022(args.output_dir, years, pooled)
 
     print(f"Wrote pooled NHAMCS cohort to {output_path}")
@@ -62,9 +67,13 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def build_pooled_frame(yearly_output_dir: Path, years: list[int]) -> pd.DataFrame:
+    return build_pooled_frame_from_template(yearly_output_dir, years, "analytic_cohort_{year}.csv")
+
+
+def build_pooled_frame_from_template(yearly_output_dir: Path, years: list[int], template: str) -> pd.DataFrame:
     frames = []
     for year in years:
-        path = yearly_output_dir / f"analytic_cohort_{year}.csv"
+        path = yearly_output_dir / template.format(year=year)
         frame = pd.read_csv(path)
         if "year" not in frame.columns:
             frame["year"] = year
@@ -94,11 +103,28 @@ def pooled_column_order(frame: pd.DataFrame) -> list[str]:
         "record_id",
         "dataset",
         "source_dataset",
+        "source_scope",
         "age",
         "sex",
         "age_band",
+        "age_band_full",
+        "RACERETH",
+        "race_ethnicity",
+        "PAYTYPER",
+        "payer",
+        "REGION",
+        "region",
+        "MSA",
+        "msa_status",
+        "IMMEDR",
+        "acuity_code",
+        "AMBTRANSFER",
+        "arrival_transfer_context",
+        "adult_male_18_64_flag",
         "abdominal_pain_flag",
+        "non_trauma_flag",
         "trauma_exclusion_flag",
+        "in_active_scope",
         "endpoint_class",
         "endpoint",
         "include_strict_binary",
@@ -112,6 +138,7 @@ def pooled_column_order(frame: pd.DataFrame) -> list[str]:
         "HR",
         "tachycardia_burden",
         "SBP",
+        "hypotension_burden",
         "PATWT",
         "pooled_weight",
         "CSTRATM",
@@ -133,6 +160,68 @@ def pooled_column_order(frame: pd.DataFrame) -> list[str]:
     return [column for column in preferred if column in frame.columns] + [
         column for column in frame.columns if column not in preferred
     ]
+
+
+def write_full_source_scope_outputs(yearly_output_dir: Path, output_dir: Path, years: list[int]) -> None:
+    for scope, template in FULL_SOURCE_SCOPE_FILES.items():
+        missing = [
+            yearly_output_dir / template.format(year=year)
+            for year in years
+            if not (yearly_output_dir / template.format(year=year)).exists()
+        ]
+        if missing:
+            build_cohort.write_blocker_report(
+                output_dir / f"{scope}_cohort_blocker_report.md",
+                source=f"NHAMCS pooled {scope} scope cohort",
+                blockers=["One or more yearly full-source scope cohort files are missing."],
+                missing_raw_data=[str(path) for path in missing],
+                outputs_written=[],
+                next_action="Run scripts/nhamcs/build_yearly_cohorts.py with the current source-scope cohort builder.",
+            )
+            continue
+        pooled = build_pooled_frame_from_template(yearly_output_dir, years, template)
+        output_path = output_dir / full_source_scope_filename(scope, years)
+        pooled.to_csv(output_path, index=False)
+        write_full_source_scope_metadata(output_dir, scope, years, pooled, output_path)
+
+
+def full_source_scope_filename(scope: str, years: list[int]) -> str:
+    return f"{scope}_cohort_nhamcs_{min(years)}_{max(years)}.csv"
+
+
+def write_full_source_scope_metadata(
+    output_dir: Path,
+    scope: str,
+    years: list[int],
+    pooled: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    binary = pooled[pooled["include_strict_binary"]]
+    events = int(binary["admit"].sum())
+    weighted_n = float(binary["pooled_weight"].sum()) if len(binary) else float("nan")
+    weighted_events = float(binary.loc[binary["admit"] == 1, "pooled_weight"].sum()) if len(binary) else float("nan")
+    metadata = {
+        "run_id": run_id(),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "dataset": dataset_name(years),
+        "scope": scope,
+        "years": years,
+        "cohort_file": str(output_path),
+        "strict_binary_n": int(len(binary)),
+        "strict_binary_admissions": events,
+        "weighted_strict_binary_n": round_or_none(weighted_n),
+        "weighted_admission_prevalence": round_or_none(weighted_events / weighted_n if weighted_n else float("nan")),
+        "method": (
+            "Strict admit-vs-routine-home-discharge endpoint classification applied before active model scope filters. "
+            "This file is for source-scope screening only and does not update e-dispo-v4.0 coefficients."
+        ),
+        "no_dataset_derived_promotion": True,
+        "no_external_validation_claim": True,
+    }
+    (output_dir / f"{scope}_cohort_metadata.json").write_text(
+        json.dumps(metadata, indent=2),
+        encoding="utf-8",
+    )
 
 
 def write_combined_yearly_outputs(yearly_output_dir: Path, output_dir: Path, years: list[int]) -> None:

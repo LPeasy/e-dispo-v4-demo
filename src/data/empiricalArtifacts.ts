@@ -190,9 +190,15 @@ const eDispoV4RequiredCoefficientKeys = [
   "tachycardia_burden",
 ] as const
 
+const eDispoV41Pas5RequiredCoefficientKeys = [
+  ...eDispoV4RequiredCoefficientKeys,
+  "high_acuity_proxy",
+] as const
+
 type PooledCoefficientKey =
   | (typeof pooledRequiredCoefficientKeys)[number]
   | (typeof eDispoV4RequiredCoefficientKeys)[number]
+  | (typeof eDispoV41Pas5RequiredCoefficientKeys)[number]
 
 const endpointCountKeys = [
   "admit",
@@ -357,7 +363,7 @@ export function validatePooledEmpiricalModelArtifact(
 
   if (requiredCoefficientKeys.length === 0) {
     issues.push(
-      "model_id must be pooled_empirical_v2_age_pain_fever_vomiting_tachycardia or e-dispo-v4.0."
+      "model_id must be pooled_empirical_v2_age_pain_fever_vomiting_tachycardia, e-dispo-v4.0, or e-dispo-v4.1-pas5-high-acuity-surrogate."
     )
   }
 
@@ -439,9 +445,28 @@ export function validatePooledEmpiricalModelArtifact(
     )
   }
 
+  if (modelId === "e-dispo-v4.0") {
+    if (!isPooledPerformanceIntervals(artifact.performance_intervals)) {
+      issues.push(
+        "e-dispo-v4.0 must include AUROC and Brier apparent performance intervals with method, status, and limitations."
+      )
+    }
+
+    if (!isPooledValidationArtifactPaths(artifact.validation_artifact_paths)) {
+      issues.push(
+        "e-dispo-v4.0 must list validation artifact paths for calibration, intervals, subgroup, missingness, optimism, and transportability outputs."
+      )
+    }
+  } else if (
+    artifact.performance_intervals !== undefined &&
+    !isPooledPerformanceIntervals(artifact.performance_intervals)
+  ) {
+    issues.push("performance_intervals must contain valid AUROC and Brier rows when present.")
+  }
+
   if (!isPooledPredictorList(artifact.predictors, requiredCoefficientKeys)) {
     issues.push(
-      "predictors must contain the seven promoted dataset-derived coefficients with finite betas and standard errors."
+      "predictors must contain the promoted dataset-derived coefficients with finite betas and standard errors."
     )
   }
 
@@ -528,6 +553,62 @@ function isPooledCohortCounts(
     isProbability(nhamcs.weighted_admission_prevalence) &&
     nhamcs.event_count_gate_passed === true
   )
+}
+
+function isPooledPerformanceIntervals(
+  value: unknown
+): value is PooledEmpiricalModelArtifact["performance_intervals"] {
+  if (!Array.isArray(value) || value.length !== 2) {
+    return false
+  }
+
+  const metrics = new Set(value.filter(isRecord).map((row) => row.metric))
+
+  return (
+    metrics.has("auroc") &&
+    metrics.has("brier_score") &&
+    value.every(
+      (row) =>
+        isRecord(row) &&
+        (row.metric === "auroc" || row.metric === "brier_score") &&
+        isProbability(row.estimate) &&
+        isProbability(row.ci_low) &&
+        isProbability(row.ci_high) &&
+        row.ci_low <= row.estimate &&
+        row.estimate <= row.ci_high &&
+        row.interval_level === 0.95 &&
+        row.method ===
+          "survey_bootstrap_replicate_weights_fixed_apparent_predictions" &&
+        row.status === "ok" &&
+        isNonEmptyString(row.limitation)
+    )
+  )
+}
+
+function isPooledValidationArtifactPaths(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  const required = [
+    "calibration_by_decile",
+    "calibration_plot_data",
+    "full_source_endpoint_screen_calibration",
+    "full_source_endpoint_screen_missingness",
+    "full_source_endpoint_screen_performance",
+    "full_source_nontrauma_screen_calibration",
+    "full_source_nontrauma_screen_missingness",
+    "full_source_nontrauma_screen_performance",
+    "full_source_scope_screen_report",
+    "missingness_performance",
+    "optimism_corrected_performance",
+    "performance_intervals",
+    "subgroup_calibration",
+    "subgroup_performance",
+    "transportability_track",
+  ]
+
+  return required.every((key) => isNonEmptyString(value[key]))
 }
 
 function isPooledPredictorEvidenceList(
@@ -643,6 +724,10 @@ function pooledCoefficientKey(
     return "tachycardia_burden"
   }
 
+  if (term === "high_acuity_proxy" && level === "1") {
+    return "high_acuity_proxy"
+  }
+
   return null
 }
 
@@ -655,6 +740,10 @@ function requiredPooledCoefficientKeys(
 
   if (modelId === "e-dispo-v4.0") {
     return eDispoV4RequiredCoefficientKeys
+  }
+
+  if (modelId === "e-dispo-v4.1-pas5-high-acuity-surrogate") {
+    return eDispoV41Pas5RequiredCoefficientKeys
   }
 
   return []

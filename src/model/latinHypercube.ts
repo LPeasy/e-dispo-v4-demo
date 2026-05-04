@@ -161,12 +161,30 @@ function coefficientContributionForTerm(
       return draw.coefficients.fever_or_temp;
     case "vomiting_present":
       return draw.coefficients.vomiting_present;
+    case "high_acuity_proxy":
+      return requiredDrawCoefficient(
+        draw,
+        "high_acuity_proxy",
+        "high_acuity_proxy",
+      );
     case "fever_or_temp.unknown_not_activated":
     case "vomiting_present.unknown_not_activated":
       return 0;
     default:
       throw new Error(`No coefficient draw mapping for active term: ${term.key}`);
   }
+}
+
+function requiredDrawCoefficient(
+  draw: PooledEmpiricalCoefficientDraw,
+  key: "high_acuity_proxy",
+  label: string,
+): number {
+  const value = draw.coefficients[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Missing coefficient draw mapping for active term: ${label}`);
+  }
+  return value;
 }
 
 function sampleTerm(

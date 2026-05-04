@@ -250,6 +250,18 @@ test("pooled empirical app export validates and activates", () => {
   assert.equal(result.label, "Pooled NHAMCS-derived coefficients active")
   assert.equal(shouldUseEmpiricalCoefficients(activeEmpiricalModel), true)
   assert.equal(shouldUsePooledEmpiricalModel(activeEmpiricalModel), true)
+  assert.deepEqual(
+    activeEmpiricalModel.performance_intervals?.map((row) => row.metric).sort(),
+    ["auroc", "brier_score"]
+  )
+  assert.ok(
+    activeEmpiricalModel.performance_intervals?.every(
+      (row) =>
+        row.method ===
+          "survey_bootstrap_replicate_weights_fixed_apparent_predictions" &&
+        row.limitation.includes("does not refit")
+    )
+  )
 })
 
 test("prior v2 pooled empirical export remains valid as archived evidence", () => {
@@ -309,6 +321,15 @@ test("missing or invalid pooled empirical app exports block activation", () => {
       ...activeEmpiricalModel,
       predictors: activeEmpiricalModel.predictors.filter(
         (row) => row.term !== "tachycardia_burden"
+      ),
+    }),
+    false
+  )
+  assert.equal(
+    shouldUsePooledEmpiricalModel({
+      ...activeEmpiricalModel,
+      performance_intervals: activeEmpiricalModel.performance_intervals?.map((row) =>
+        row.metric === "auroc" ? { ...row, ci_low: row.estimate + 0.01 } : row
       ),
     }),
     false
